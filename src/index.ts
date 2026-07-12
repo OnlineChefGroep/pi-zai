@@ -17,15 +17,18 @@ import { loadZaiConfig, type ZaiConfig } from "./config.ts";
 import { resolveCredentialSourceForProvider } from "./credentials.ts";
 import { syncProviderRegistration } from "./platform-provider.ts";
 import {
+	closeMetricsStorage,
+	configureMetricsStorage,
 	dispatchZaiHook,
 	getCacheMetricsStore,
+	getMetricsStorage,
 	inferEndpoint,
 	isZaiProvider,
 	resetCacheMetrics,
 	sessionState,
 } from "./state.ts";
 
-export { loadZaiConfig, type ZaiConfig } from "./config.ts";
+export { loadZaiConfig, type ZaiConfig, type ZaiMetricsConfig, type ZaiMetricsMode } from "./config.ts";
 export {
 	buildPlatformApiKeyCommand,
 	type CredentialSourceName,
@@ -45,9 +48,12 @@ export {
 	syncProviderRegistration,
 } from "./platform-provider.ts";
 export {
+	closeMetricsStorage,
+	configureMetricsStorage,
 	createZaiSessionState,
 	dispatchZaiHook,
 	getCacheMetricsStore,
+	getMetricsStorage,
 	getZaiHookHandlers,
 	inferEndpoint,
 	isZaiProvider,
@@ -58,6 +64,7 @@ export {
 	type ZaiHookHandlers,
 	type ZaiSessionState,
 } from "./state.ts";
+export * from "./storage/index.ts";
 
 const EXTENSION_VERSION = "0.1.0";
 
@@ -111,14 +118,15 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	registerZaiCommands(pi, createDefaultZaiCommandDeps(EXTENSION_VERSION));
 
 	pi.on("session_start", async (event, ctx) => {
+		config = loadZaiConfig(ctx.cwd);
+		sessionState.preserveThinking = config.preserveThinking;
 		if (event.reason === "reload") {
-			config = loadZaiConfig(ctx.cwd);
-			sessionState.preserveThinking = config.preserveThinking;
 			syncProviderRegistration(pi, config);
 		} else {
 			resetCacheMetrics();
 		}
 
+		await configureMetricsStorage(config.metrics, ctx.cwd, (message) => ctx.ui.notify(message, "warning"));
 		updateSessionFromModel(ctx.model, pi.getThinkingLevel());
 		if (ctx.model && isZaiProvider(ctx.model.provider)) {
 			sessionState.credentialSource = resolveCredentialSourceForProvider(ctx.model.provider, ctx.modelRegistry);
@@ -130,6 +138,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_shutdown", async () => {
+		closeMetricsStorage();
 		resetCacheMetrics();
 	});
 
@@ -158,7 +167,25 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	pi.on("turn_end", async (event, ctx) => {
 		sessionState.thinkingLevel = pi.getThinkingLevel();
 		if (ctx.model && isZaiModel(ctx.model) && event.message.role === "assistant" && event.message.usage) {
-			getCacheMetricsStore().record(ctx.model, event.message.usage);
+			const stats = getCacheMetricsStore().record(ctx.model, event.message.usage);
+			const snapshot = stats?.last;
+			getMetricsStorage().recordAttempt({
+				occurredAt: Date.now(),
+				projectId: sessionState.projectId,
+				attempt: 1,
+				provider: ctx.model.provider,
+				model: ctx.model.id,
+				endpointKind: inferEndpoint(ctx.model.provider, ctx.model.baseUrl),
+				thinkingLevel: sessionState.thinkingLevel,
+				extensionVersion: EXTENSION_VERSION,
+				systemFingerprint: stats?.segment.systemFingerprint,
+				toolsetFingerprint: stats?.segment.toolsetFingerprint,
+				inputTokens: event.message.usage.input,
+				cacheReadTokens: event.message.usage.cacheRead,
+				cacheWriteTokens: event.message.usage.cacheWrite,
+				outputTokens: event.message.usage.output,
+				estimatedApiCostMicrousd: snapshot ? Math.round(snapshot.cost * 1_000_000) : undefined,
+			});
 		}
 		await dispatchZaiHook("onTurnEnd", event, ctx);
 	});

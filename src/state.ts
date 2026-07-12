@@ -2,6 +2,8 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai";
 import type { ExtensionContext, SessionStartEvent, TurnEndEvent } from "@earendil-works/pi-coding-agent";
 import { CacheMetricsStore } from "./cache/metrics.ts";
+import type { ZaiMetricsConfig } from "./config.ts";
+import { createMetricsStorage, MemoryStorage, projectIdForCwd, type MetricsStorage } from "./storage/index.ts";
 
 export type ZaiEndpointKind = "coding" | "platform" | "coding-cn" | "unknown";
 
@@ -12,6 +14,7 @@ export interface ZaiSessionState {
 	modelId: string | undefined;
 	thinkingLevel: ThinkingLevel | undefined;
 	credentialSource: string | undefined;
+	projectId: string | undefined;
 	promptStability:
 		| {
 				stableLineCount: number;
@@ -56,6 +59,7 @@ export function createZaiSessionState(preserveThinking = false): ZaiSessionState
 		modelId: undefined,
 		thinkingLevel: undefined,
 		credentialSource: undefined,
+		projectId: undefined,
 		promptStability: undefined,
 	};
 }
@@ -64,6 +68,7 @@ export const sessionState = createZaiSessionState();
 
 let hookHandlers: ZaiHookHandlers = {};
 let cacheMetricsStore = new CacheMetricsStore();
+let metricsStorage: MetricsStorage = new MemoryStorage({ enabled: false });
 
 export function getCacheMetricsStore(): CacheMetricsStore {
 	return cacheMetricsStore;
@@ -71,6 +76,26 @@ export function getCacheMetricsStore(): CacheMetricsStore {
 
 export function resetCacheMetrics(): void {
 	cacheMetricsStore = new CacheMetricsStore();
+}
+
+export function getMetricsStorage(): MetricsStorage {
+	return metricsStorage;
+}
+
+export async function configureMetricsStorage(
+	config: ZaiMetricsConfig,
+	cwd: string,
+	onWarning?: (message: string) => void,
+): Promise<void> {
+	metricsStorage.close();
+	sessionState.projectId = projectIdForCwd(cwd);
+	metricsStorage = await createMetricsStorage(config, onWarning);
+	metricsStorage.runCleanup(Date.now());
+}
+
+export function closeMetricsStorage(): void {
+	metricsStorage.close();
+	metricsStorage = new MemoryStorage({ enabled: false });
 }
 
 export function setZaiHookHandlers(handlers: ZaiHookHandlers): void {

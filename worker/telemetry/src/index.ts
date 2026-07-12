@@ -153,14 +153,33 @@ export default {
 
 		let body: AggregateBody;
 		try {
-			const rawBody = await request.text();
-			if (rawBody.length > MAX_BODY_BYTES) {
-				return Response.json(
-					{ ok: false, error: `payload exceeds ${MAX_BODY_BYTES} bytes` },
-					{ status: 413 },
-				);
+			const reader = request.body?.getReader();
+			const chunks: Uint8Array[] = [];
+			let totalBytes = 0;
+
+			if (reader) {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					totalBytes += value.byteLength;
+					if (totalBytes > MAX_BODY_BYTES) {
+						await reader.cancel();
+						return Response.json(
+							{ ok: false, error: `payload exceeds ${MAX_BODY_BYTES} bytes` },
+							{ status: 413 },
+						);
+					}
+					chunks.push(value);
+				}
 			}
-			body = JSON.parse(rawBody) as AggregateBody;
+
+			const bytes = new Uint8Array(totalBytes);
+			let offset = 0;
+			for (const chunk of chunks) {
+				bytes.set(chunk, offset);
+				offset += chunk.byteLength;
+			}
+			body = JSON.parse(new TextDecoder().decode(bytes)) as AggregateBody;
 		} catch {
 			return new Response("Invalid JSON", { status: 400 });
 		}

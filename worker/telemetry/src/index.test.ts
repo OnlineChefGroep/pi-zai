@@ -112,6 +112,34 @@ describe("telemetry worker fetch handler", () => {
 		expect(response.status).toBe(413);
 	});
 
+	it("returns 413 for oversized bodies without Content-Length", async () => {
+		const request = new Request(
+			"https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate",
+			{
+				method: "POST",
+				body: "a".repeat(MAX_BODY_BYTES + 1),
+			},
+		);
+		expect(request.headers.get("Content-Length")).toBeNull();
+
+		const response = await worker.fetch(request, {});
+		expect(response.status).toBe(413);
+	});
+
+	it("returns 413 when a multibyte body exceeds the UTF-8 byte limit", async () => {
+		const request = new Request(
+			"https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate",
+			{
+				method: "POST",
+				body: `"${"é".repeat(MAX_BODY_BYTES / 2)}"`,
+			},
+		);
+		expect(request.headers.get("Content-Length")).toBeNull();
+
+		const response = await worker.fetch(request, {});
+		expect(response.status).toBe(413);
+	});
+
 	it("returns 429 when rate limited", async () => {
 		resetRateLimitState();
 		const env = {};

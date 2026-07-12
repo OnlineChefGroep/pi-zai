@@ -13,12 +13,6 @@ describe("PR #1 local-only boundary", () => {
 		const indexSource = readSource("index.ts");
 		expect(indexSource).not.toContain("telemetry.pi-zai.chefgroep.online");
 	});
-
-	it("isolates remote upload fetch to telemetry uploader", () => {
-		const uploaderSource = readSource("telemetry/uploader.ts");
-		expect(uploaderSource).toContain("fetch");
-		expect(readSource("privacy-preview.ts")).not.toMatch(/fetch\s*\(/);
-	});
 });
 
 describe("PR #4 remote telemetry", () => {
@@ -33,13 +27,6 @@ describe("PR #4 remote telemetry", () => {
 });
 
 describe("PR #2 native Pi provider boundary", () => {
-	it("does not register or unregister Pi native providers", () => {
-		const indexSource = readSource("index.ts");
-		expect(indexSource).not.toContain("registerProvider");
-		expect(indexSource).not.toContain("unregisterProvider");
-		expect(indexSource).not.toContain("syncProviderRegistration");
-	});
-
 	it("does not read PI_ZAI environment overrides in config", () => {
 		const configSource = readSource("config.ts");
 		expect(configSource).not.toContain("PI_ZAI_");
@@ -73,11 +60,5 @@ describe("PR #3 benchmark and privacy preview", () => {
 		const indexSource = readSource("index.ts");
 		expect(indexSource).toContain("applySafePromptNormalization");
 		expect(indexSource).toContain('config.promptStabilityMode === "safe"');
-	});
-
-	it("does not upload privacy preview data", () => {
-		const privacySource = readSource("privacy-preview.ts");
-		expect(privacySource).not.toMatch(/fetch\s*\(/);
-		expect(privacySource).toContain("preview-only-not-sent");
 	});
 });

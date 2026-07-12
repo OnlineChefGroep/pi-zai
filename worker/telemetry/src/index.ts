@@ -1,3 +1,13 @@
+import {
+	checkRateLimit,
+	isBodyTooLarge,
+	MAX_BODY_BYTES,
+	MAX_BY_PROVIDER_MODEL_ROWS,
+	resolveClientKey,
+} from "./limits";
+
+export { MAX_BODY_BYTES, MAX_BY_PROVIDER_MODEL_ROWS } from "./limits";
+
 export interface Env {
 	PI_ZAI_TELEMETRY?: AnalyticsEngineDataset;
 }
@@ -71,11 +81,14 @@ function validateProviderRow(row: unknown, index: number): string | undefined {
 	return undefined;
 }
 
-function validateBody(body: AggregateBody): string | undefined {
+export function validateBody(body: AggregateBody): string | undefined {
 	if (body.schema !== 1) return "schema must be 1";
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(body.day)) return "invalid day";
 	if (body.attempts < 0 || body.errors < 0) return "negative counts";
 	if (!Array.isArray(body.byProviderModel)) return "byProviderModel must be an array";
+	if (body.byProviderModel.length > MAX_BY_PROVIDER_MODEL_ROWS) {
+		return `byProviderModel exceeds max length (${MAX_BY_PROVIDER_MODEL_ROWS})`;
+	}
 	if (!body.errorCategories || typeof body.errorCategories !== "object") return "errorCategories must be an object";
 
 	for (const key of Object.keys(body.errorCategories)) {
@@ -107,9 +120,22 @@ export default {
 			return new Response("Method not allowed", { status: 405 });
 		}
 
+		if (isBodyTooLarge(request)) {
+			return Response.json({ ok: false, error: `payload exceeds ${MAX_BODY_BYTES} bytes` }, { status: 413 });
+		}
+
+		const clientKey = resolveClientKey(request);
+		if (!checkRateLimit(clientKey)) {
+			return Response.json({ ok: false, error: "rate limit exceeded" }, { status: 429 });
+		}
+
 		let body: AggregateBody;
 		try {
-			body = (await request.json()) as AggregateBody;
+			const rawBody = await request.text();
+			if (rawBody.length > MAX_BODY_BYTES) {
+				return Response.json({ ok: false, error: `payload exceeds ${MAX_BODY_BYTES} bytes` }, { status: 413 });
+			}
+			body = JSON.parse(rawBody) as AggregateBody;
 		} catch {
 			return new Response("Invalid JSON", { status: 400 });
 		}

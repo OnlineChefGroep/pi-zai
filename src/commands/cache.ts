@@ -1,6 +1,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isZaiModel } from "../cache/context-policy.ts";
 import { type CacheDiagnosticAction, formatCacheDiagnostics, formatCacheResetMessage } from "../cache/diagnostics.ts";
+import { getMetricsStorage, sessionState } from "../state.ts";
 import { getCacheMetricsStore, resetCacheMetrics } from "./cache-state.ts";
 
 const ACTIONS = ["status", "reset-stats", "explain"] as const;
@@ -33,13 +34,26 @@ export function registerZaiCacheCommand(pi: ExtensionAPI): void {
 				return;
 			}
 
-			const output = formatCacheDiagnostics(
+			let output = formatCacheDiagnostics(
 				{
 					stats: getCacheMetricsStore().get(),
 					isZaiSession: true,
 				},
 				action,
 			);
+			if (action === "status") {
+				const history = getMetricsStorage().getUsageSummary(
+					sessionState.projectId ? { projectId: sessionState.projectId } : undefined,
+				);
+				output += [
+					"",
+					"Local project history",
+					`  Recorded attempts: ${history.attempts}`,
+					`  Cached input: ${history.cacheReadTokens}`,
+					`  Total prompt: ${history.inputTokens + history.cacheReadTokens + history.cacheWriteTokens}`,
+					`  Cache hit ratio: ${(history.cacheHitRatio * 100).toFixed(1)}%`,
+				].join("\n");
+			}
 			ctx.ui.notify(output, "info");
 		},
 	});

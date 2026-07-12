@@ -2,6 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { loadZaiConfig } from "../config.ts";
 import { resolveCredentialSourceForProvider } from "../credentials.ts";
 import { registerZaiCacheCommand } from "./cache.ts";
+import { registerZaiDataCommand } from "./data.ts";
 import { isPlatformProviderRegistered, resolveModelForEndpoint, type ZaiCommandDeps } from "./deps.ts";
 import { registerZaiDoctorCommand } from "./doctor.ts";
 import { registerZaiEndpointCommand } from "./endpoint.ts";
@@ -17,6 +18,7 @@ export function registerZaiCommands(pi: ExtensionAPI, deps: ZaiCommandDeps): voi
 	registerZaiCacheCommand(pi);
 	registerZaiUsageCommand(pi);
 	registerZaiDoctorCommand(pi, deps);
+	registerZaiDataCommand(pi);
 }
 
 export function createDefaultZaiCommandDeps(extensionVersion: string): ZaiCommandDeps {

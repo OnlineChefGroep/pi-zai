@@ -12,13 +12,24 @@ export function endpointKindFromProvider(provider: string): string {
 }
 
 export function isAttemptError(record: ProviderAttemptRecord): boolean {
-	return Boolean(record.errorCategory) || (record.httpStatus !== undefined && record.httpStatus >= 400);
+	return (
+		Boolean(record.errorCategory) ||
+		(record.httpStatus !== undefined && record.httpStatus >= 400)
+	);
 }
 
-export function summarizeAnonymousDaily(records: readonly ProviderAttemptRecord[]): AnonymousDailySummary {
+export function summarizeAnonymousDaily(
+	records: readonly ProviderAttemptRecord[],
+): AnonymousDailySummary {
 	const byKey = new Map<
 		string,
-		{ provider: string; model: string; endpointKind: string; attempts: number; errors: number }
+		{
+			provider: string;
+			model: string;
+			endpointKind: string;
+			attempts: number;
+			errors: number;
+		}
 	>();
 	const errorCategories: Record<string, number> = {};
 	let errors = 0;
@@ -43,7 +54,8 @@ export function summarizeAnonymousDaily(records: readonly ProviderAttemptRecord[
 		}
 		byKey.set(key, row);
 		if (record.errorCategory) {
-			errorCategories[record.errorCategory] = (errorCategories[record.errorCategory] ?? 0) + 1;
+			errorCategories[record.errorCategory] =
+				(errorCategories[record.errorCategory] ?? 0) + 1;
 		}
 		inputTokens += record.inputTokens ?? 0;
 		cacheReadTokens += record.cacheReadTokens ?? 0;
@@ -59,7 +71,9 @@ export function summarizeAnonymousDaily(records: readonly ProviderAttemptRecord[
 		cacheWriteTokens,
 		outputTokens,
 		byProviderModel: Array.from(byKey.values()).sort(
-			(left, right) => left.provider.localeCompare(right.provider) || left.model.localeCompare(right.model),
+			(left, right) =>
+				left.provider.localeCompare(right.provider) ||
+				left.model.localeCompare(right.model),
 		),
 		errorCategories,
 	};
@@ -71,7 +85,13 @@ export function mergeAnonymousDailySummaries(
 	if (summaries.length === 0) return undefined;
 	const byKey = new Map<
 		string,
-		{ provider: string; model: string; endpointKind: string; attempts: number; errors: number }
+		{
+			provider: string;
+			model: string;
+			endpointKind: string;
+			attempts: number;
+			errors: number;
+		}
 	>();
 	const errorCategories: Record<string, number> = {};
 	let attempts = 0;

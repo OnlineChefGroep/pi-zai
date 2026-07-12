@@ -1,6 +1,10 @@
 import type { Usage } from "@earendil-works/pi-ai";
 import { calculateCost, type Model } from "@earendil-works/pi-ai/compat";
-import { endpointsShareCache, isCodingPlanProvider, isPlatformProvider } from "./context-policy.ts";
+import {
+	endpointsShareCache,
+	isCodingPlanProvider,
+	isPlatformProvider,
+} from "./context-policy.ts";
 
 export type CacheSegmentKey = {
 	provider: string;
@@ -48,7 +52,8 @@ export type SessionCacheStats = {
 
 export function endpointLabel(provider: string, baseUrl: string): string {
 	if (isPlatformProvider(provider)) return "platform";
-	if (isCodingPlanProvider(provider) || baseUrl.includes("/coding/")) return "coding";
+	if (isCodingPlanProvider(provider) || baseUrl.includes("/coding/"))
+		return "coding";
 	return baseUrl;
 }
 
@@ -68,7 +73,10 @@ export function buildCacheSegmentKey(input: {
 	};
 }
 
-export function detectSegmentChange(previous: CacheSegmentKey | undefined, next: CacheSegmentKey): SegmentChange {
+export function detectSegmentChange(
+	previous: CacheSegmentKey | undefined,
+	next: CacheSegmentKey,
+): SegmentChange {
 	if (!previous) {
 		return { changed: true, reasons: ["session"] };
 	}
@@ -77,10 +85,15 @@ export function detectSegmentChange(previous: CacheSegmentKey | undefined, next:
 	if (previous.provider !== next.provider) reasons.push("provider");
 	if (previous.endpoint !== next.endpoint) reasons.push("endpoint");
 	if (previous.model !== next.model) reasons.push("model");
-	if (previous.systemFingerprint !== next.systemFingerprint) reasons.push("system-fingerprint");
-	if (previous.toolsetFingerprint !== next.toolsetFingerprint) reasons.push("toolset-fingerprint");
+	if (previous.systemFingerprint !== next.systemFingerprint)
+		reasons.push("system-fingerprint");
+	if (previous.toolsetFingerprint !== next.toolsetFingerprint)
+		reasons.push("toolset-fingerprint");
 
-	if (reasons.includes("endpoint") && !endpointsShareCache(previous.endpoint, next.endpoint)) {
+	if (
+		reasons.includes("endpoint") &&
+		!endpointsShareCache(previous.endpoint, next.endpoint)
+	) {
 		// Cross-model / cross-endpoint: never assume cache transfer.
 		if (!reasons.includes("model")) {
 			reasons.push("cross-endpoint-no-transfer");
@@ -95,7 +108,9 @@ export function formatSegmentChangeReason(change: SegmentChange): string {
 	return change.reasons.join(", ");
 }
 
-export function computeCacheRatios(usage: Pick<Usage, "input" | "cacheRead" | "cacheWrite">): {
+export function computeCacheRatios(
+	usage: Pick<Usage, "input" | "cacheRead" | "cacheWrite">,
+): {
 	hitRatio: number;
 	missRatio: number;
 } {
@@ -127,13 +142,19 @@ export function estimateCacheSavings(model: Model<any>, usage: Usage): number {
 		cacheWrite: 0,
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 	};
-	const cached = { ...usage, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
+	const cached = {
+		...usage,
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+	};
 	calculateCost(model, uncached);
 	calculateCost(model, cached);
 	return Math.max(0, uncached.cost.total - cached.cost.total);
 }
 
-export function createUsageSnapshot(model: Model<any>, usage: Usage): CacheUsageSnapshot {
+export function createUsageSnapshot(
+	model: Model<any>,
+	usage: Usage,
+): CacheUsageSnapshot {
 	const ratios = computeCacheRatios(usage);
 	return {
 		input: usage.input,

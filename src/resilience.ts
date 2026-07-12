@@ -36,7 +36,11 @@ export function readPiRetrySettings(): PiRetrySettingsSnapshot {
 	}
 	try {
 		const parsed = JSON.parse(readFileSync(path, "utf-8")) as {
-			retry?: { enabled?: boolean; maxRetries?: number; provider?: { maxRetries?: number } };
+			retry?: {
+				enabled?: boolean;
+				maxRetries?: number;
+				provider?: { maxRetries?: number };
+			};
 		};
 		return {
 			enabled: parsed.retry?.enabled ?? true,
@@ -48,13 +52,19 @@ export function readPiRetrySettings(): PiRetrySettingsSnapshot {
 	}
 }
 
-export function formatRetrySettingsAdvice(settings: PiRetrySettingsSnapshot): string | undefined {
+export function formatRetrySettingsAdvice(
+	settings: PiRetrySettingsSnapshot,
+): string | undefined {
 	const hints: string[] = [];
 	if (!settings.enabled) {
-		hints.push("Enable Pi auto-retry: retry.enabled = true in ~/.pi/agent/settings.json");
+		hints.push(
+			"Enable Pi auto-retry: retry.enabled = true in ~/.pi/agent/settings.json",
+		);
 	}
 	if (settings.agentMaxRetries < RECOMMENDED_AGENT_RETRIES) {
-		hints.push(`Raise agent retries to ${RECOMMENDED_AGENT_RETRIES} (now ${settings.agentMaxRetries})`);
+		hints.push(
+			`Raise agent retries to ${RECOMMENDED_AGENT_RETRIES} (now ${settings.agentMaxRetries})`,
+		);
 	}
 	if (settings.providerMaxRetries < RECOMMENDED_PROVIDER_RETRIES) {
 		hints.push(
@@ -149,7 +159,10 @@ export function formatProbeSummary(result: EndpointProbeResult): string {
 	const total = result.ok + result.fail;
 	const avg =
 		result.latencyMs.length > 0
-			? Math.round(result.latencyMs.reduce((sum, value) => sum + value, 0) / result.latencyMs.length)
+			? Math.round(
+					result.latencyMs.reduce((sum, value) => sum + value, 0) /
+						result.latencyMs.length,
+				)
 			: 0;
 	return `${result.ok}/${total} ok, avg ${avg}ms`;
 }

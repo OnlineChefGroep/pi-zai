@@ -84,11 +84,12 @@ This is separate from `/zai-benchmark` (manifest A0–A3, local SQLite run track
 
 ## Boundary tests
 
-Source-level guards in `src/boundary.test.ts`:
+Runtime guards in `src/boundary.test.ts`:
 
-- Remote `fetch` isolated to `telemetry/uploader.ts`
-- Privacy preview does not call `fetch`
-- `zai-telemetry` command and aggregate mode in config
+- Extension loads with a mock `ExtensionAPI` and global `fetch` spy
+- Full lifecycle does not call `fetch` when telemetry is off
+- Aggregate upload calls `fetch` only via `telemetry/uploader.ts`
+- Provider registration and `PI_ZAI_*` env overrides are verified at runtime
 
 ## Telemetry worker deploy
 

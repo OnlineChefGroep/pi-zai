@@ -2,7 +2,12 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { clearLocalProjectSecret, loadOrCreateLocalSecret, localSecretPath, projectIdForCwd } from "./project-id.ts";
+import {
+	clearLocalProjectSecret,
+	loadOrCreateLocalSecret,
+	localSecretPath,
+	projectIdForCwd,
+} from "./project-id.ts";
 
 const AGENT_DIR_ENV = "PI_CODING_AGENT_DIR";
 const temporaryDirectories: string[] = [];

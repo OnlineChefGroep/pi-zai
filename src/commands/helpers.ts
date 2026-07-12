@@ -1,7 +1,11 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage, Model, Usage } from "@earendil-works/pi-ai";
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { isCodingPlanProvider, isPlatformProvider, isZaiModel } from "../cache/context-policy.ts";
+import {
+	isCodingPlanProvider,
+	isPlatformProvider,
+	isZaiModel,
+} from "../cache/context-policy.ts";
 import { endpointLabel } from "../cache/metrics.ts";
 import type { ZaiConfig } from "../config.ts";
 import { formatPiCredentialSource } from "../credentials.ts";
@@ -19,7 +23,9 @@ type ZaiOpenAICompat = {
 	zaiToolStream?: boolean;
 };
 
-export function getZaiCompat(model: Model<any> | undefined): ZaiOpenAICompat | undefined {
+export function getZaiCompat(
+	model: Model<any> | undefined,
+): ZaiOpenAICompat | undefined {
 	return model?.compat as ZaiOpenAICompat | undefined;
 }
 
@@ -72,7 +78,8 @@ export function describeThinkingPayload(
 	if (!model?.reasoning) {
 		return "thinking disabled (non-reasoning model)";
 	}
-	const clearThinking = thinkingLevel !== "off" && config.preserveThinking ? "false" : "true";
+	const clearThinking =
+		thinkingLevel !== "off" && config.preserveThinking ? "false" : "true";
 	if (thinkingLevel === "off") {
 		return 'type="disabled", clear_thinking=true';
 	}
@@ -81,18 +88,24 @@ export function describeThinkingPayload(
 	return `type="enabled", reasoning_effort="${effort}", clear_thinking=${clearThinking}`;
 }
 
-export function getLastAssistantUsage(ctx: ExtensionCommandContext): Usage | undefined {
+export function getLastAssistantUsage(
+	ctx: ExtensionCommandContext,
+): Usage | undefined {
 	for (let i = ctx.sessionManager.getBranch().length - 1; i >= 0; i -= 1) {
 		const entry = ctx.sessionManager.getBranch()[i];
-		if (entry.type !== "message" || entry.message.role !== "assistant") continue;
+		if (entry.type !== "message" || entry.message.role !== "assistant")
+			continue;
 		const assistant = entry.message as AssistantMessage;
-		if (assistant.stopReason === "aborted" || assistant.stopReason === "error") continue;
+		if (assistant.stopReason === "aborted" || assistant.stopReason === "error")
+			continue;
 		return assistant.usage;
 	}
 	return undefined;
 }
 
-export function getSessionUsageTotals(ctx: ExtensionCommandContext): SessionUsageTotals {
+export function getSessionUsageTotals(
+	ctx: ExtensionCommandContext,
+): SessionUsageTotals {
 	const totals: SessionUsageTotals = {
 		input: 0,
 		output: 0,
@@ -103,7 +116,8 @@ export function getSessionUsageTotals(ctx: ExtensionCommandContext): SessionUsag
 	};
 
 	for (const entry of ctx.sessionManager.getEntries()) {
-		if (entry.type !== "message" || entry.message.role !== "assistant") continue;
+		if (entry.type !== "message" || entry.message.role !== "assistant")
+			continue;
 		const assistant = entry.message as AssistantMessage;
 		const usage = assistant.usage;
 		totals.input += usage.input;
@@ -117,7 +131,10 @@ export function getSessionUsageTotals(ctx: ExtensionCommandContext): SessionUsag
 	return totals;
 }
 
-export function formatCredentialSource(provider: string, ctx: Pick<ExtensionCommandContext, "modelRegistry">): string {
+export function formatCredentialSource(
+	provider: string,
+	ctx: Pick<ExtensionCommandContext, "modelRegistry">,
+): string {
 	return formatPiCredentialSource(provider, ctx.modelRegistry);
 }
 
@@ -142,12 +159,16 @@ export function formatUsageLine(usage: Usage): string {
 	].join(", ");
 }
 
-export function requireZaiModel(ctx: ExtensionCommandContext): { model: Model<any> } | { error: string } {
+export function requireZaiModel(
+	ctx: ExtensionCommandContext,
+): { model: Model<any> } | { error: string } {
 	if (!ctx.model) {
 		return { error: "No model selected. Choose a Z.AI model first." };
 	}
 	if (!isZaiModel(ctx.model)) {
-		return { error: `Active model ${ctx.model.provider}/${ctx.model.id} is not a Z.AI provider.` };
+		return {
+			error: `Active model ${ctx.model.provider}/${ctx.model.id} is not a Z.AI provider.`,
+		};
 	}
 	return { model: ctx.model };
 }

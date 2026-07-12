@@ -2,7 +2,11 @@ import type { ZaiConfig } from "../config.ts";
 import type { MetricsStorage } from "../storage/types.ts";
 import { buildAggregatePayloadForDay } from "./aggregate.ts";
 import { hasTelemetryConsent } from "./consent.ts";
-import { TELEMETRY_INGEST_URL, type TelemetrySyncResult, type TelemetryUploadResult } from "./types.ts";
+import {
+	TELEMETRY_INGEST_URL,
+	type TelemetrySyncResult,
+	type TelemetryUploadResult,
+} from "./types.ts";
 import { uploadAggregatePayload } from "./uploader.ts";
 
 export function isTelemetryUploadEnabled(config: ZaiConfig): boolean {
@@ -23,7 +27,8 @@ export async function uploadTelemetryDay(input: {
 		return {
 			day: input.day,
 			ok: false,
-			error: "telemetry not enabled (set mode aggregate and /zai-telemetry enable)",
+			error:
+				"telemetry not enabled (set mode aggregate and /zai-telemetry enable)",
 		};
 	}
 	if (input.storage.isTelemetryDayUploaded(input.day)) {
@@ -35,7 +40,10 @@ export async function uploadTelemetryDay(input: {
 		return { day: input.day, ok: false, error: "no aggregate data for day" };
 	}
 
-	const result = await uploadAggregatePayload(payload, resolveTelemetryIngestUrl(input.config));
+	const result = await uploadAggregatePayload(
+		payload,
+		resolveTelemetryIngestUrl(input.config),
+	);
 	if (result.ok) {
 		input.storage.markTelemetryDayUploaded(input.day, Date.now());
 	}

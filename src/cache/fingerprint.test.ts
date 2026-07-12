@@ -1,17 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { canonicalizeStablePrefix, fingerprintSystemPrompt, fingerprintToolset } from "./fingerprint.ts";
+import {
+	canonicalizeStablePrefix,
+	fingerprintSystemPrompt,
+	fingerprintToolset,
+} from "./fingerprint.ts";
 
 describe("fingerprint", () => {
 	it("excludes timestamps and token counts from system prompt fingerprint", () => {
 		const base = "You are a helpful assistant.\nFollow project rules.";
 		const withVolatile = `${base}\nCurrent time: 2026-07-12T06:43:00Z\nToken count: 12345`;
-		expect(fingerprintSystemPrompt(base)).toBe(fingerprintSystemPrompt(withVolatile));
+		expect(fingerprintSystemPrompt(base)).toBe(
+			fingerprintSystemPrompt(withVolatile),
+		);
 	});
 
 	it("excludes git status lines from fingerprint", () => {
 		const base = "You are a helpful assistant.";
 		const withGit = `${base}\nCurrent git status\nOn branch main\nChanges not staged for commit`;
-		expect(fingerprintSystemPrompt(base)).toBe(fingerprintSystemPrompt(withGit));
+		expect(fingerprintSystemPrompt(base)).toBe(
+			fingerprintSystemPrompt(withGit),
+		);
 	});
 
 	it("returns shortened 16-char hashes", () => {
@@ -25,7 +33,10 @@ describe("fingerprint", () => {
 			{
 				name: "read",
 				description: "Read files",
-				parameters: { type: "object", properties: { path: { type: "string" } } },
+				parameters: {
+					type: "object",
+					properties: { path: { type: "string" } },
+				},
 			},
 			{ name: "write", description: "Write files" },
 		];
@@ -34,7 +45,10 @@ describe("fingerprint", () => {
 			{
 				name: "read",
 				description: "Read files",
-				parameters: { properties: { path: { type: "string" } }, type: "object" },
+				parameters: {
+					properties: { path: { type: "string" } },
+					type: "object",
+				},
 			},
 		];
 		expect(fingerprintToolset(toolsA)).toBe(fingerprintToolset(toolsB));

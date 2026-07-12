@@ -41,12 +41,14 @@
 	"scripts": {
 		"clean": "shx rm -rf dist",
 		"build": "tsc -p tsconfig.build.json",
+		"lint": "biome check .",
+		"lint:fix": "biome check --write .",
 		"test": "vitest --run",
 		"benchmark:cache-affinity": "npm run build && node scripts/cache-affinity-ab.mjs",
-		"prepublishOnly": "npm run clean && npm run build && npm run test"
+		"prepublishOnly": "npm run clean && npm run build && npm run lint && npm run test"
 	},
-	"dependencies": {},
 	"devDependencies": {
+		"@biomejs/biome": "^2.0.6",
 		"@earendil-works/pi-agent-core": "0.80.6",
 		"@earendil-works/pi-ai": "0.80.6",
 		"@earendil-works/pi-coding-agent": "0.80.6",

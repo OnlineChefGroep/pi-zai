@@ -5,7 +5,10 @@ type ZaiThinkingPayload = {
 	clear_thinking?: boolean;
 };
 
-export function normalizeZaiThinkingPayload(payload: unknown, config: ZaiConfig): Record<string, unknown> | undefined {
+export function normalizeZaiThinkingPayload(
+	payload: unknown,
+	config: ZaiConfig,
+): Record<string, unknown> | undefined {
 	if (payload === null || typeof payload !== "object") {
 		return undefined;
 	}

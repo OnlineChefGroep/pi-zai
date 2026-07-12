@@ -3,6 +3,14 @@ export const MAX_BY_PROVIDER_MODEL_ROWS = 64;
 export const RATE_LIMIT_WINDOW_MS = 60_000;
 export const RATE_LIMIT_MAX_REQUESTS = 30;
 
+export type RateLimitBinding = {
+	limit(options: { key: string }): Promise<{ success: boolean }>;
+};
+
+export type RateLimitEnv = {
+	PI_ZAI_RATE_LIMITER?: RateLimitBinding;
+};
+
 type RateBucket = {
 	count: number;
 	windowStart: number;
@@ -49,4 +57,16 @@ export function isBodyTooLarge(request: Request): boolean {
 	if (!contentLength) return false;
 	const parsed = Number(contentLength);
 	return Number.isFinite(parsed) && parsed > MAX_BODY_BYTES;
+}
+
+export async function enforceRateLimit(
+	request: Request,
+	env: RateLimitEnv,
+): Promise<boolean> {
+	const clientKey = resolveClientKey(request);
+	if (env.PI_ZAI_RATE_LIMITER) {
+		const { success } = await env.PI_ZAI_RATE_LIMITER.limit({ key: clientKey });
+		return success;
+	}
+	return checkRateLimit(clientKey);
 }

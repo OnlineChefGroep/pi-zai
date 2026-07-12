@@ -31,7 +31,9 @@ function formatTimestamp(epochMs: number | undefined): string {
 function segmentLines(stats: SessionCacheStats): string[] {
 	const { segment, last, rolling } = stats;
 	const promptTokens = rolling.input + rolling.cacheRead + rolling.cacheWrite;
-	const lastRatios = last ? { hitRatio: last.hitRatio, missRatio: last.missRatio } : computeCacheRatios(rolling);
+	const lastRatios = last
+		? { hitRatio: last.hitRatio, missRatio: last.missRatio }
+		: computeCacheRatios(rolling);
 
 	return [
 		"Current segment",
@@ -68,7 +70,10 @@ function segmentLines(stats: SessionCacheStats): string[] {
 	];
 }
 
-export function formatCacheDiagnostics(input: CacheDiagnosticsInput, action: CacheDiagnosticAction = "status"): string {
+export function formatCacheDiagnostics(
+	input: CacheDiagnosticsInput,
+	action: CacheDiagnosticAction = "status",
+): string {
 	if (!input.isZaiSession) {
 		return "Cache diagnostics are only available for active Z.AI sessions.";
 	}
@@ -108,7 +113,9 @@ export function formatCacheDiagnostics(input: CacheDiagnosticsInput, action: Cac
 		].join("\n");
 	}
 
-	return ["Z.AI cache diagnostics", "", ...segmentLines(input.stats)].join("\n");
+	return ["Z.AI cache diagnostics", "", ...segmentLines(input.stats)].join(
+		"\n",
+	);
 }
 
 export function formatCacheStatus(input: CacheDiagnosticsInput): string {
@@ -120,5 +127,8 @@ export function formatCacheExplain(input: CacheDiagnosticsInput): string {
 }
 
 export function formatCacheResetMessage(): string {
-	return formatCacheDiagnostics({ stats: undefined, isZaiSession: true }, "reset-stats");
+	return formatCacheDiagnostics(
+		{ stats: undefined, isZaiSession: true },
+		"reset-stats",
+	);
 }

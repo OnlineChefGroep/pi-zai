@@ -1,6 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isZaiModel } from "../cache/context-policy.ts";
-import { type CacheDiagnosticAction, formatCacheDiagnostics, formatCacheResetMessage } from "../cache/diagnostics.ts";
+import {
+	type CacheDiagnosticAction,
+	formatCacheDiagnostics,
+	formatCacheResetMessage,
+} from "../cache/diagnostics.ts";
 import { getCacheMetricsStore, resetCacheMetrics } from "./cache-state.ts";
 
 const ACTIONS = ["status", "reset-stats", "explain"] as const;
@@ -15,14 +19,20 @@ function parseCacheAction(args: string): CacheDiagnosticAction {
 
 export function registerZaiCacheCommand(pi: ExtensionAPI): void {
 	pi.registerCommand("zai-cache", {
-		description: "Z.AI implicit cache diagnostics (status, reset-stats, explain)",
+		description:
+			"Z.AI implicit cache diagnostics (status, reset-stats, explain)",
 		getArgumentCompletions: (prefix) => {
 			const matches = ACTIONS.filter((value) => value.startsWith(prefix));
-			return matches.length > 0 ? matches.map((value) => ({ value, label: value })) : null;
+			return matches.length > 0
+				? matches.map((value) => ({ value, label: value }))
+				: null;
 		},
 		handler: async (args, ctx) => {
 			if (!isZaiModel(ctx.model)) {
-				ctx.ui.notify("Cache diagnostics require an active Z.AI model.", "warning");
+				ctx.ui.notify(
+					"Cache diagnostics require an active Z.AI model.",
+					"warning",
+				);
 				return;
 			}
 

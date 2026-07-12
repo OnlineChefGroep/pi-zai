@@ -1,6 +1,10 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { computeCacheRatios } from "../cache/metrics.ts";
-import { fetchQuotaLimit, formatQuotaLimit, monitorBaseFromModelUrl } from "../usage-monitor.ts";
+import {
+	fetchQuotaLimit,
+	formatQuotaLimit,
+	monitorBaseFromModelUrl,
+} from "../usage-monitor.ts";
 import { getCacheMetricsStore } from "./cache-state.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
 import {
@@ -15,7 +19,10 @@ import {
 	requireZaiModel,
 } from "./helpers.ts";
 
-export function registerZaiUsageCommand(pi: ExtensionAPI, deps: ZaiCommandDeps): void {
+export function registerZaiUsageCommand(
+	pi: ExtensionAPI,
+	deps: ZaiCommandDeps,
+): void {
 	pi.registerCommand("zai-usage", {
 		description: "Show native Pi usage with Z.AI cache and cost interpretation",
 		handler: async (_args, ctx) => {
@@ -29,14 +36,19 @@ export function registerZaiUsageCommand(pi: ExtensionAPI, deps: ZaiCommandDeps):
 			const lastUsage = getLastAssistantUsage(ctx);
 			const sessionTotals = getSessionUsageTotals(ctx);
 			const cacheStats = getCacheMetricsStore().get();
-			const sessionPrompt = sessionTotals.input + sessionTotals.cacheRead + sessionTotals.cacheWrite;
+			const sessionPrompt =
+				sessionTotals.input +
+				sessionTotals.cacheRead +
+				sessionTotals.cacheWrite;
 			const sessionRatios = computeCacheRatios({
 				input: sessionTotals.input,
 				cacheRead: sessionTotals.cacheRead,
 				cacheWrite: sessionTotals.cacheWrite,
 			});
 			const rollingHitRatio =
-				cacheStats && cacheStats.rolling.requests > 0 ? cacheStats.rolling.hitRatio : sessionRatios.hitRatio;
+				cacheStats && cacheStats.rolling.requests > 0
+					? cacheStats.rolling.hitRatio
+					: sessionRatios.hitRatio;
 
 			const costInterpretation = isSubscriptionManaged(model)
 				? "Dollar cost: subscription-managed (Coding Plan)"
@@ -71,7 +83,9 @@ export function registerZaiUsageCommand(pi: ExtensionAPI, deps: ZaiCommandDeps):
 			const monitorBase = monitorBaseFromModelUrl(model.baseUrl);
 			const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
 			if (monitorBase && auth.ok && auth.apiKey) {
-				const quota = await fetchQuotaLimit(monitorBase, auth.apiKey, { headers: auth.headers });
+				const quota = await fetchQuotaLimit(monitorBase, auth.apiKey, {
+					headers: auth.headers,
+				});
 				lines.push("");
 				if (quota.ok) {
 					lines.push(...formatQuotaLimit(quota.data));

@@ -9,13 +9,29 @@ import {
 	formatBenchmarkInstructions,
 	formatBenchmarkManifest,
 } from "../benchmark/manifest.ts";
-import { buildBenchmarkRunReport, formatBenchmarkGatesSummary, formatBenchmarkRunReport } from "../benchmark/report.ts";
+import {
+	buildBenchmarkRunReport,
+	formatBenchmarkGatesSummary,
+	formatBenchmarkRunReport,
+} from "../benchmark/report.ts";
 import type { BenchmarkRunManifest } from "../benchmark/types.ts";
-import { getCacheMetricsStore, getMetricsStorage, sessionState } from "../state.ts";
+import {
+	getCacheMetricsStore,
+	getMetricsStorage,
+	sessionState,
+} from "../state.ts";
 import { projectIdForCwd } from "../storage/project-id.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
 
-const ACTIONS = ["manifest", "instructions", "start", "complete", "status", "report", "gates"] as const;
+const ACTIONS = [
+	"manifest",
+	"instructions",
+	"start",
+	"complete",
+	"status",
+	"report",
+	"gates",
+] as const;
 
 function createBenchmarkRunId(): string {
 	return `bench-${Date.now()}-${randomUUID().slice(0, 8)}`;
@@ -24,28 +40,38 @@ function createBenchmarkRunId(): string {
 function completedRunsForVariant(variant: BenchmarkVariantId): number {
 	const storage = getMetricsStorage();
 	if (!storage) return 0;
-	return storage.listBenchmarkRuns().filter((run) => run.variant === variant && run.report !== undefined).length;
+	return storage
+		.listBenchmarkRuns()
+		.filter((run) => run.variant === variant && run.report !== undefined)
+		.length;
 }
 
-export function registerZaiBenchmarkCommand(pi: ExtensionAPI, deps: ZaiCommandDeps): void {
+export function registerZaiBenchmarkCommand(
+	pi: ExtensionAPI,
+	deps: ZaiCommandDeps,
+): void {
 	pi.registerCommand("zai-benchmark", {
 		description: "A0-A3 benchmark manifest, run tracking, and gate summary",
 		getArgumentCompletions: (prefix) => {
 			const normalized = prefix.trim().toLowerCase();
-			const actionMatches = ACTIONS.filter((value) => value.startsWith(normalized));
+			const actionMatches = ACTIONS.filter((value) =>
+				value.startsWith(normalized),
+			);
 			if (actionMatches.length > 0) {
 				return actionMatches.map((value) => ({ value, label: value }));
 			}
-			const variantMatches = BENCHMARK_VARIANTS.map((variant) => variant.id).filter((value) =>
-				value.toLowerCase().startsWith(normalized),
-			);
+			const variantMatches = BENCHMARK_VARIANTS.map(
+				(variant) => variant.id,
+			).filter((value) => value.toLowerCase().startsWith(normalized));
 			if (variantMatches.length > 0) {
 				return variantMatches.map((value) => ({ value, label: value }));
 			}
-			const scenarioMatches = BENCHMARK_SCENARIOS.map((scenario) => scenario.id).filter((value) =>
-				value.startsWith(normalized),
-			);
-			return scenarioMatches.length > 0 ? scenarioMatches.map((value) => ({ value, label: value })) : null;
+			const scenarioMatches = BENCHMARK_SCENARIOS.map(
+				(scenario) => scenario.id,
+			).filter((value) => value.startsWith(normalized));
+			return scenarioMatches.length > 0
+				? scenarioMatches.map((value) => ({ value, label: value }))
+				: null;
 		},
 		handler: async (args, ctx) => {
 			const tokens = args
@@ -62,21 +88,34 @@ export function registerZaiBenchmarkCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 				case "instructions": {
 					const variantId = tokens[1];
 					if (!variantId) {
-						ctx.ui.notify("Usage: /zai-benchmark instructions <A0|A1|A2|A3> [scenario]", "warning");
+						ctx.ui.notify(
+							"Usage: /zai-benchmark instructions <A0|A1|A2|A3> [scenario]",
+							"warning",
+						);
 						return;
 					}
-					ctx.ui.notify(formatBenchmarkInstructions(variantId, tokens[2]), "info");
+					ctx.ui.notify(
+						formatBenchmarkInstructions(variantId, tokens[2]),
+						"info",
+					);
 					return;
 				}
 				case "start": {
 					if (!storage) {
-						ctx.ui.notify("Local metrics storage is not initialized.", "warning");
+						ctx.ui.notify(
+							"Local metrics storage is not initialized.",
+							"warning",
+						);
 						return;
 					}
 					const variantId = tokens[1];
 					const scenarioId = tokens[2];
-					const variant = variantId ? findBenchmarkVariant(variantId) : undefined;
-					const scenario = scenarioId ? findBenchmarkScenario(scenarioId) : BENCHMARK_SCENARIOS[0];
+					const variant = variantId
+						? findBenchmarkVariant(variantId)
+						: undefined;
+					const scenario = scenarioId
+						? findBenchmarkScenario(scenarioId)
+						: BENCHMARK_SCENARIOS[0];
 					if (!variant || variant.id === "A0") {
 						ctx.ui.notify(
 							"Usage: /zai-benchmark start <A1|A2|A3> [scenario]. A0 runs without pi-zai.",
@@ -127,12 +166,18 @@ export function registerZaiBenchmarkCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 				}
 				case "complete": {
 					if (!storage) {
-						ctx.ui.notify("Local metrics storage is not initialized.", "warning");
+						ctx.ui.notify(
+							"Local metrics storage is not initialized.",
+							"warning",
+						);
 						return;
 					}
 					const runId = tokens[1] ?? sessionState.activeBenchmarkRunId;
 					if (!runId) {
-						ctx.ui.notify("No active benchmark run. Use /zai-benchmark start <A1|A2|A3> [scenario].", "warning");
+						ctx.ui.notify(
+							"No active benchmark run. Use /zai-benchmark start <A1|A2|A3> [scenario].",
+							"warning",
+						);
 						return;
 					}
 					const run = storage.getBenchmarkRun(runId);
@@ -141,7 +186,10 @@ export function registerZaiBenchmarkCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 						return;
 					}
 					if (run.report) {
-						ctx.ui.notify(`Benchmark run ${runId} is already completed.`, "warning");
+						ctx.ui.notify(
+							`Benchmark run ${runId} is already completed.`,
+							"warning",
+						);
 						return;
 					}
 
@@ -156,7 +204,8 @@ export function registerZaiBenchmarkCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 						transport: storage.getTransportSummary(filter),
 						cache: getCacheMetricsStore().get(),
 						completedRunsForVariant: completedRunsForVariant(run.variant) + 1,
-						turnsObserved: projectSummary.attempts - run.manifest.attemptsBaseline,
+						turnsObserved:
+							projectSummary.attempts - run.manifest.attemptsBaseline,
 					});
 					storage.completeBenchmarkRun(runId, report);
 					if (sessionState.activeBenchmarkRunId === runId) {
@@ -167,7 +216,10 @@ export function registerZaiBenchmarkCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 				}
 				case "status": {
 					if (!storage) {
-						ctx.ui.notify("Local metrics storage is not initialized.", "warning");
+						ctx.ui.notify(
+							"Local metrics storage is not initialized.",
+							"warning",
+						);
 						return;
 					}
 					const runs = storage.listBenchmarkRuns().slice(0, 5);
@@ -178,14 +230,19 @@ export function registerZaiBenchmarkCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 					];
 					for (const run of runs) {
 						const state = run.report ? "completed" : "in-progress";
-						lines.push(`  ${run.runId}  ${run.variant}/${run.scenario}  (${state})`);
+						lines.push(
+							`  ${run.runId}  ${run.variant}/${run.scenario}  (${state})`,
+						);
 					}
 					ctx.ui.notify(lines.join("\n"), "info");
 					return;
 				}
 				case "report": {
 					if (!storage) {
-						ctx.ui.notify("Local metrics storage is not initialized.", "warning");
+						ctx.ui.notify(
+							"Local metrics storage is not initialized.",
+							"warning",
+						);
 						return;
 					}
 					const runId = tokens[1] ?? sessionState.activeBenchmarkRunId;
@@ -203,13 +260,22 @@ export function registerZaiBenchmarkCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 				}
 				case "gates":
 					if (!storage) {
-						ctx.ui.notify("Local metrics storage is not initialized.", "warning");
+						ctx.ui.notify(
+							"Local metrics storage is not initialized.",
+							"warning",
+						);
 						return;
 					}
-					ctx.ui.notify(formatBenchmarkGatesSummary(storage.listBenchmarkRuns()), "info");
+					ctx.ui.notify(
+						formatBenchmarkGatesSummary(storage.listBenchmarkRuns()),
+						"info",
+					);
 					return;
 				default:
-					ctx.ui.notify(`Unknown action "${action}". Try: ${ACTIONS.join(", ")}`, "warning");
+					ctx.ui.notify(
+						`Unknown action "${action}". Try: ${ACTIONS.join(", ")}`,
+						"warning",
+					);
 			}
 		},
 	});

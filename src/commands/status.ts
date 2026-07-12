@@ -21,7 +21,10 @@ import {
 	requireZaiModel,
 } from "./helpers.ts";
 
-export function registerZaiStatusCommand(pi: ExtensionAPI, deps: ZaiCommandDeps): void {
+export function registerZaiStatusCommand(
+	pi: ExtensionAPI,
+	deps: ZaiCommandDeps,
+): void {
 	pi.registerCommand("zai", {
 		description: "Show Z.AI provider status, thinking, cache, and usage",
 		handler: async (_args, ctx) => {
@@ -34,7 +37,10 @@ export function registerZaiStatusCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 			const model = check.model;
 			const config = deps.getConfig(ctx.cwd);
 			const rawThinkingLevel = pi.getThinkingLevel();
-			const thinkingLevel = clampThinkingLevel(model, rawThinkingLevel) as typeof rawThinkingLevel;
+			const thinkingLevel = clampThinkingLevel(
+				model,
+				rawThinkingLevel,
+			) as typeof rawThinkingLevel;
 			if (thinkingLevel !== rawThinkingLevel) {
 				pi.setThinkingLevel(thinkingLevel);
 			}
@@ -44,14 +50,27 @@ export function registerZaiStatusCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 			const lastUsage = getLastAssistantUsage(ctx);
 			const sessionTotals = getSessionUsageTotals(ctx);
 			const cacheStats = getCacheMetricsStore().get();
-			const sessionPrompt = sessionTotals.input + sessionTotals.cacheRead + sessionTotals.cacheWrite;
+			const sessionPrompt =
+				sessionTotals.input +
+				sessionTotals.cacheRead +
+				sessionTotals.cacheWrite;
 			const sessionHitRatio =
-				sessionPrompt > 0 ? sessionTotals.cacheRead / sessionPrompt : (cacheStats?.rolling.hitRatio ?? 0);
-			const lastHitRatio = lastUsage ? computeCacheRatios(lastUsage).hitRatio : cacheStats?.last?.hitRatio;
-			const toolStream = getZaiCompat(model)?.zaiToolStream === true ? "enabled" : "disabled";
+				sessionPrompt > 0
+					? sessionTotals.cacheRead / sessionPrompt
+					: (cacheStats?.rolling.hitRatio ?? 0);
+			const lastHitRatio = lastUsage
+				? computeCacheRatios(lastUsage).hitRatio
+				: cacheStats?.last?.hitRatio;
+			const toolStream =
+				getZaiCompat(model)?.zaiToolStream === true ? "enabled" : "disabled";
 			const sessionCostLabel =
-				model.provider === "zai-platform" ? formatDollarCost(sessionTotals.cost) : "subscription-managed";
-			const promptAnalysis = resolvePromptStability(ctx.getSystemPrompt(), sessionState.promptStability);
+				model.provider === "zai-platform"
+					? formatDollarCost(sessionTotals.cost)
+					: "subscription-managed";
+			const promptAnalysis = resolvePromptStability(
+				ctx.getSystemPrompt(),
+				sessionState.promptStability,
+			);
 			const tpsStats = getTpsTracker().get();
 
 			const lines = [

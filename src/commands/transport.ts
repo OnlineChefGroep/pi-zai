@@ -3,21 +3,33 @@ import { getMetricsStorage, sessionState } from "../state.ts";
 import { projectIdForCwd } from "../storage/project-id.ts";
 import type { TransportSummary } from "../storage/types.ts";
 
-function formatLatency(label: string, value: number | undefined): string | undefined {
+function formatLatency(
+	label: string,
+	value: number | undefined,
+): string | undefined {
 	if (value === undefined) return undefined;
 	return `  ${label}: ${value} ms`;
 }
 
 function formatTransportSummary(summary: TransportSummary): string {
-	const lines = ["Z.AI transport summary (local)", `  Attempts: ${summary.attempts}`, `  Errors: ${summary.errors}`];
+	const lines = [
+		"Z.AI transport summary (local)",
+		`  Attempts: ${summary.attempts}`,
+		`  Errors: ${summary.errors}`,
+	];
 	const latencyLines = [
 		formatLatency("Avg request to headers", summary.avgRequestToHeadersMs),
-		formatLatency("Avg request to first delta", summary.avgRequestToFirstDeltaMs),
+		formatLatency(
+			"Avg request to first delta",
+			summary.avgRequestToFirstDeltaMs,
+		),
 		formatLatency("Avg total", summary.avgTotalMs),
 	].filter((line): line is string => line !== undefined);
 	lines.push(...latencyLines);
 
-	const categories = Object.entries(summary.errorCategories).sort((left, right) => right[1] - left[1]);
+	const categories = Object.entries(summary.errorCategories).sort(
+		(left, right) => right[1] - left[1],
+	);
 	if (categories.length > 0) {
 		lines.push("  Error categories:");
 		for (const [category, count] of categories) {

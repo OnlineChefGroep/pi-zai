@@ -19,6 +19,7 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm ci --ignore-scripts --prefix worker/telemetry
+      - run: npm run lint
       - run: npm run build
       - run: npm test
       - run: npm run check --prefix worker/telemetry

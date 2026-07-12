@@ -7,25 +7,44 @@ import type { ZaiCommandDeps } from "./deps.ts";
 
 const ACTIONS = ["preview"] as const;
 
-export function registerZaiPrivacyCommand(pi: ExtensionAPI, deps: ZaiCommandDeps): void {
+export function registerZaiPrivacyCommand(
+	pi: ExtensionAPI,
+	deps: ZaiCommandDeps,
+): void {
 	pi.registerCommand("zai-privacy", {
-		description: "Local privacy allowlist and future aggregate preview (not sent)",
+		description:
+			"Local privacy allowlist and future aggregate preview (not sent)",
 		getArgumentCompletions: (prefix) => {
 			const matches = ACTIONS.filter((value) => value.startsWith(prefix));
-			return matches.length > 0 ? matches.map((value) => ({ value, label: value })) : null;
+			return matches.length > 0
+				? matches.map((value) => ({ value, label: value }))
+				: null;
 		},
 		handler: async (args, ctx) => {
 			const action = args.trim().toLowerCase() || "preview";
 			if (action !== "preview") {
-				ctx.ui.notify(`Unknown action "${action}". Try: ${ACTIONS.join(", ")}`, "warning");
+				ctx.ui.notify(
+					`Unknown action "${action}". Try: ${ACTIONS.join(", ")}`,
+					"warning",
+				);
 				return;
 			}
 
 			const config = deps.getConfig(ctx.cwd);
 			const storage = getMetricsStorage();
 			const projectId = sessionState.projectId ?? projectIdForCwd(ctx.cwd);
-			const usage = storage?.getUsageSummary({ projectId }) ?? { ...EMPTY_USAGE_SUMMARY };
-			ctx.ui.notify(formatPrivacyPreview(config, deps.extensionVersion, sessionState, usage), "info");
+			const usage = storage?.getUsageSummary({ projectId }) ?? {
+				...EMPTY_USAGE_SUMMARY,
+			};
+			ctx.ui.notify(
+				formatPrivacyPreview(
+					config,
+					deps.extensionVersion,
+					sessionState,
+					usage,
+				),
+				"info",
+			);
 		},
 	});
 }

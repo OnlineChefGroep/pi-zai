@@ -34,7 +34,12 @@ export class AttemptTracker {
 		};
 	}
 
-	armProviderAttempt(input: { requestId: string; attempt: number; payloadFingerprint: string; now?: number }): void {
+	armProviderAttempt(input: {
+		requestId: string;
+		attempt: number;
+		payloadFingerprint: string;
+		now?: number;
+	}): void {
 		if (!this.inFlight) {
 			this.beginAttempt({
 				queryId: input.requestId.replace(/-a\d+$/, ""),
@@ -144,7 +149,9 @@ export class AttemptTracker {
 			httpStatus: this.inFlight.httpStatus,
 			errorCategory: input.errorCategory ?? this.inFlight.errorCategory,
 			estimatedApiCostMicrousd:
-				input.usage !== undefined ? Math.round(Math.max(0, input.usage.cost.total) * 1_000_000) : undefined,
+				input.usage !== undefined
+					? Math.round(Math.max(0, input.usage.cost.total) * 1_000_000)
+					: undefined,
 		};
 
 		this.inFlight = undefined;

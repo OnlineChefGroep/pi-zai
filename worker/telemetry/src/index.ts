@@ -1,14 +1,14 @@
 import {
-	checkRateLimit,
+	enforceRateLimit,
 	isBodyTooLarge,
 	MAX_BODY_BYTES,
 	MAX_BY_PROVIDER_MODEL_ROWS,
-	resolveClientKey,
+	type RateLimitEnv,
 } from "./limits";
 
 export { MAX_BODY_BYTES, MAX_BY_PROVIDER_MODEL_ROWS } from "./limits";
 
-export interface Env {
+export interface Env extends RateLimitEnv {
 	PI_ZAI_TELEMETRY?: AnalyticsEngineDataset;
 }
 
@@ -65,18 +65,29 @@ function normalizeKey(key: string): string {
 
 function isForbiddenKeyName(key: string): boolean {
 	const normalized = normalizeKey(key);
-	return FORBIDDEN_KEY_NAMES.some((token) => normalized.includes(token.replace(/_/g, "")));
+	return FORBIDDEN_KEY_NAMES.some((token) =>
+		normalized.includes(token.replace(/_/g, "")),
+	);
 }
 
 function validateProviderRow(row: unknown, index: number): string | undefined {
-	if (!row || typeof row !== "object") return `byProviderModel[${index}] must be an object`;
+	if (!row || typeof row !== "object")
+		return `byProviderModel[${index}] must be an object`;
 	const record = row as Record<string, unknown>;
 	for (const key of Object.keys(record)) {
-		if (isForbiddenKeyName(key)) return `forbidden field: byProviderModel[${index}].${key}`;
+		if (isForbiddenKeyName(key))
+			return `forbidden field: byProviderModel[${index}].${key}`;
 	}
-	const allowed = new Set(["provider", "model", "endpointKind", "attempts", "errors"]);
+	const allowed = new Set([
+		"provider",
+		"model",
+		"endpointKind",
+		"attempts",
+		"errors",
+	]);
 	for (const key of Object.keys(record)) {
-		if (!allowed.has(key)) return `unknown field: byProviderModel[${index}].${key}`;
+		if (!allowed.has(key))
+			return `unknown field: byProviderModel[${index}].${key}`;
 	}
 	return undefined;
 }
@@ -85,14 +96,17 @@ export function validateBody(body: AggregateBody): string | undefined {
 	if (body.schema !== 1) return "schema must be 1";
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(body.day)) return "invalid day";
 	if (body.attempts < 0 || body.errors < 0) return "negative counts";
-	if (!Array.isArray(body.byProviderModel)) return "byProviderModel must be an array";
+	if (!Array.isArray(body.byProviderModel))
+		return "byProviderModel must be an array";
 	if (body.byProviderModel.length > MAX_BY_PROVIDER_MODEL_ROWS) {
 		return `byProviderModel exceeds max length (${MAX_BY_PROVIDER_MODEL_ROWS})`;
 	}
-	if (!body.errorCategories || typeof body.errorCategories !== "object") return "errorCategories must be an object";
+	if (!body.errorCategories || typeof body.errorCategories !== "object")
+		return "errorCategories must be an object";
 
 	for (const key of Object.keys(body.errorCategories)) {
-		if (isForbiddenKeyName(key)) return `forbidden field: errorCategories.${key}`;
+		if (isForbiddenKeyName(key))
+			return `forbidden field: errorCategories.${key}`;
 	}
 
 	for (let index = 0; index < body.byProviderModel.length; index += 1) {
@@ -102,7 +116,10 @@ export function validateBody(body: AggregateBody): string | undefined {
 
 	const serialized = JSON.stringify(body).toLowerCase();
 	for (const token of FORBIDDEN_KEY_NAMES) {
-		if (serialized.includes(`"${token}"`) || serialized.includes(`"${token.replace(/_/g, "")}"`)) {
+		if (
+			serialized.includes(`"${token}"`) ||
+			serialized.includes(`"${token.replace(/_/g, "")}"`)
+		) {
 			return `forbidden field: ${token}`;
 		}
 	}
@@ -121,19 +138,27 @@ export default {
 		}
 
 		if (isBodyTooLarge(request)) {
-			return Response.json({ ok: false, error: `payload exceeds ${MAX_BODY_BYTES} bytes` }, { status: 413 });
+			return Response.json(
+				{ ok: false, error: `payload exceeds ${MAX_BODY_BYTES} bytes` },
+				{ status: 413 },
+			);
 		}
 
-		const clientKey = resolveClientKey(request);
-		if (!checkRateLimit(clientKey)) {
-			return Response.json({ ok: false, error: "rate limit exceeded" }, { status: 429 });
+		if (!(await enforceRateLimit(request, env))) {
+			return Response.json(
+				{ ok: false, error: "rate limit exceeded" },
+				{ status: 429 },
+			);
 		}
 
 		let body: AggregateBody;
 		try {
 			const rawBody = await request.text();
 			if (rawBody.length > MAX_BODY_BYTES) {
-				return Response.json({ ok: false, error: `payload exceeds ${MAX_BODY_BYTES} bytes` }, { status: 413 });
+				return Response.json(
+					{ ok: false, error: `payload exceeds ${MAX_BODY_BYTES} bytes` },
+					{ status: 413 },
+				);
 			}
 			body = JSON.parse(rawBody) as AggregateBody;
 		} catch {
@@ -142,11 +167,20 @@ export default {
 
 		const validationError = validateBody(body);
 		if (validationError) {
-			return Response.json({ ok: false, error: validationError }, { status: 400 });
+			return Response.json(
+				{ ok: false, error: validationError },
+				{ status: 400 },
+			);
 		}
 
 		env.PI_ZAI_TELEMETRY?.writeDataPoint({
-			blobs: [body.day, body.extensionVersion, body.promptMode, body.turnBucket, body.cacheRatioBucket],
+			blobs: [
+				body.day,
+				body.extensionVersion,
+				body.promptMode,
+				body.turnBucket,
+				body.cacheRatioBucket,
+			],
 			doubles: [
 				body.attempts,
 				body.errors,

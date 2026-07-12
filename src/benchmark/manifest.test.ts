@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { findBenchmarkScenario, findBenchmarkVariant, formatBenchmarkInstructions } from "./manifest.ts";
+import {
+	findBenchmarkScenario,
+	findBenchmarkVariant,
+	formatBenchmarkInstructions,
+} from "./manifest.ts";
 
 describe("benchmark manifest", () => {
 	it("resolves A0-A3 variants", () => {

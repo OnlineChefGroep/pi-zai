@@ -47,7 +47,11 @@ export function formatDurationMs(durationMs: number): string {
 	return `${(durationMs / 1000).toFixed(1)}s`;
 }
 
-export function formatTpsStatusLine(sample: TpsSample, rolling: TpsRollingStats, showAvg: boolean): string {
+export function formatTpsStatusLine(
+	sample: TpsSample,
+	rolling: TpsRollingStats,
+	showAvg: boolean,
+): string {
 	const last = formatTps(sample.tps);
 	if (!showAvg || rolling.requests <= 1) {
 		return `${last} tok/s`;
@@ -98,7 +102,10 @@ export class TpsTracker {
 		this.inFlight.ttftMs = Math.max(0, now - this.inFlight.startedAt);
 	}
 
-	completeAssistantMessage(usage: Pick<Usage, "output" | "reasoning">, endedAt = Date.now()): TpsSample | undefined {
+	completeAssistantMessage(
+		usage: Pick<Usage, "output" | "reasoning">,
+		endedAt = Date.now(),
+	): TpsSample | undefined {
 		if (!this.inFlight) {
 			return undefined;
 		}

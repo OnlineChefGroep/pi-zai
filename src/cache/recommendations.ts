@@ -8,7 +8,9 @@ export type CacheRecommendation = {
 const LOW_HIT_RATIO = 0.3;
 const MEDIUM_HIT_RATIO = 0.55;
 
-export function buildCacheRecommendations(stats: SessionCacheStats | undefined): CacheRecommendation[] {
+export function buildCacheRecommendations(
+	stats: SessionCacheStats | undefined,
+): CacheRecommendation[] {
 	if (!stats || stats.rolling.requests < 2) {
 		return [
 			{
@@ -51,8 +53,13 @@ export function buildCacheRecommendations(stats: SessionCacheStats | undefined):
 		});
 	}
 
-	if (segment.endpoint === "platform" && rolling.estimatedSavings > 0 && promptTotal > 0) {
-		const savingsRatio = rolling.estimatedSavings / Math.max(rolling.estimatedCost, 0.0001);
+	if (
+		segment.endpoint === "platform" &&
+		rolling.estimatedSavings > 0 &&
+		promptTotal > 0
+	) {
+		const savingsRatio =
+			rolling.estimatedSavings / Math.max(rolling.estimatedCost, 0.0001);
 		if (savingsRatio < 0.05 && rolling.hitRatio < MEDIUM_HIT_RATIO) {
 			recommendations.push({
 				priority: "low",
@@ -73,9 +80,12 @@ export function buildCacheRecommendations(stats: SessionCacheStats | undefined):
 	return recommendations;
 }
 
-export function formatCacheRecommendations(stats: SessionCacheStats | undefined): string[] {
+export function formatCacheRecommendations(
+	stats: SessionCacheStats | undefined,
+): string[] {
 	return buildCacheRecommendations(stats).map((item) => {
-		const label = item.priority === "high" ? "!" : item.priority === "medium" ? "-" : "·";
+		const label =
+			item.priority === "high" ? "!" : item.priority === "medium" ? "-" : "·";
 		return `  ${label} ${item.message}`;
 	});
 }

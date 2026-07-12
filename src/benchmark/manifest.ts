@@ -33,7 +33,8 @@ export const BENCHMARK_VARIANTS: readonly BenchmarkVariant[] = [
 	{
 		id: "A1",
 		label: "pi-zai observe",
-		description: "Extension loaded; observe-only prompt stability; affinity off",
+		description:
+			"Extension loaded; observe-only prompt stability; affinity off",
 		extensionLoaded: true,
 		settings: {
 			promptStability: { mode: "observe" },
@@ -45,7 +46,8 @@ export const BENCHMARK_VARIANTS: readonly BenchmarkVariant[] = [
 	{
 		id: "A2",
 		label: "pi-zai safe prompt",
-		description: "A1 plus safe prompt normalization below explicit dynamic marker",
+		description:
+			"A1 plus safe prompt normalization below explicit dynamic marker",
 		extensionLoaded: true,
 		settings: {
 			promptStability: { mode: "safe" },
@@ -57,7 +59,8 @@ export const BENCHMARK_VARIANTS: readonly BenchmarkVariant[] = [
 	{
 		id: "A3",
 		label: "pi-zai experimental affinity",
-		description: "A2 plus experimental X-Session-Id (benchmark only; not default)",
+		description:
+			"A2 plus experimental X-Session-Id (benchmark only; not default)",
 		extensionLoaded: true,
 		settings: {
 			promptStability: { mode: "safe" },
@@ -97,7 +100,8 @@ export const BENCHMARK_SCENARIOS: readonly BenchmarkScenario[] = [
 		id: "controlled-failure",
 		label: "Controlled failure",
 		turns: 8,
-		description: "Timeout, interrupted stream, 429/500 where safely reproducible",
+		description:
+			"Timeout, interrupted stream, 429/500 where safely reproducible",
 	},
 ];
 
@@ -114,8 +118,12 @@ export function findBenchmarkVariant(id: string): BenchmarkVariant | undefined {
 	return BENCHMARK_VARIANTS.find((variant) => variant.id === normalized);
 }
 
-export function findBenchmarkScenario(id: string): BenchmarkScenario | undefined {
-	return BENCHMARK_SCENARIOS.find((scenario) => scenario.id === id.trim().toLowerCase());
+export function findBenchmarkScenario(
+	id: string,
+): BenchmarkScenario | undefined {
+	return BENCHMARK_SCENARIOS.find(
+		(scenario) => scenario.id === id.trim().toLowerCase(),
+	);
 }
 
 export function formatBenchmarkManifest(): string {
@@ -123,10 +131,15 @@ export function formatBenchmarkManifest(): string {
 		"pi-zai benchmark manifest (A0-A3)",
 		"",
 		"Variants:",
-		...BENCHMARK_VARIANTS.map((variant) => `  ${variant.id}  ${variant.label} — ${variant.description}`),
+		...BENCHMARK_VARIANTS.map(
+			(variant) => `  ${variant.id}  ${variant.label} — ${variant.description}`,
+		),
 		"",
 		"Scenarios:",
-		...BENCHMARK_SCENARIOS.map((scenario) => `  ${scenario.id}  (${scenario.turns} turns) — ${scenario.description}`),
+		...BENCHMARK_SCENARIOS.map(
+			(scenario) =>
+				`  ${scenario.id}  (${scenario.turns} turns) — ${scenario.description}`,
+		),
 		"",
 		"Sample gates before changing defaults:",
 		`  ${BENCHMARK_SAMPLE_GATES.sessionsPerVariantScenario} sessions per variant/scenario`,
@@ -143,13 +156,18 @@ export function formatBenchmarkManifest(): string {
 	return lines.join("\n");
 }
 
-export function formatBenchmarkInstructions(variantId: string, scenarioId?: string): string {
+export function formatBenchmarkInstructions(
+	variantId: string,
+	scenarioId?: string,
+): string {
 	const variant = findBenchmarkVariant(variantId);
 	if (!variant) {
 		return `Unknown variant "${variantId}". Use A0, A1, A2, or A3.`;
 	}
 
-	const scenario = scenarioId ? findBenchmarkScenario(scenarioId) : BENCHMARK_SCENARIOS[0];
+	const scenario = scenarioId
+		? findBenchmarkScenario(scenarioId)
+		: BENCHMARK_SCENARIOS[0];
 	if (!scenario) {
 		return `Unknown scenario "${scenarioId}".`;
 	}
@@ -162,10 +180,12 @@ export function formatBenchmarkInstructions(variantId: string, scenarioId?: stri
 		variant.description,
 		"",
 		"Setup:",
-		variant.extensionLoaded ? "  1. Install pi-zai and /reload" : "  1. Run Pi without pi-zai (A0 control)",
-		`  2. Apply settings in .pi/settings.json or ~/.pi/agent/settings.json:`,
+		variant.extensionLoaded
+			? "  1. Install pi-zai and /reload"
+			: "  1. Run Pi without pi-zai (A0 control)",
+		"  2. Apply settings in .pi/settings.json or ~/.pi/agent/settings.json:",
 		...settingsJson.split("\n").map((line) => `     ${line}`),
-		`  3. Select the same Z.AI model/provider across variants`,
+		"  3. Select the same Z.AI model/provider across variants",
 		`  4. Run scenario "${scenario.label}" (${scenario.turns} turns)`,
 		`     ${scenario.description}`,
 		"",

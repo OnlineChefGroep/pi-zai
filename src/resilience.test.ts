@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { formatRetrySettingsAdvice, isConnectionErrorMessage, readPiRetrySettings } from "./resilience.ts";
+import {
+	formatRetrySettingsAdvice,
+	isConnectionErrorMessage,
+	readPiRetrySettings,
+} from "./resilience.ts";
 
 describe("isConnectionErrorMessage", () => {
 	it("matches common Z.AI transport failures", () => {
 		expect(isConnectionErrorMessage("Connection error.")).toBe(true);
 		expect(isConnectionErrorMessage("fetch failed")).toBe(true);
-		expect(isConnectionErrorMessage("Recv failure: Verbinding is weggevallen")).toBe(true);
+		expect(
+			isConnectionErrorMessage("Recv failure: Verbinding is weggevallen"),
+		).toBe(true);
 	});
 
 	it("does not match auth or quota errors", () => {

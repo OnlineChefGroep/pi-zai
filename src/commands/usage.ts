@@ -1,5 +1,6 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { computeCacheRatios } from "../cache/metrics.ts";
+import { getMetricsStorage, sessionState } from "../state.ts";
 import { getCacheMetricsStore } from "./cache-state.ts";
 import {
 	formatDollarCost,
@@ -33,6 +34,9 @@ export function registerZaiUsageCommand(pi: ExtensionAPI): void {
 				cacheRead: sessionTotals.cacheRead,
 				cacheWrite: sessionTotals.cacheWrite,
 			});
+			const localHistory = getMetricsStorage().getUsageSummary(
+				sessionState.projectId ? { projectId: sessionState.projectId } : undefined,
+			);
 
 			const costInterpretation = isSubscriptionManaged(model)
 				? "Dollar cost: subscription-managed (Coding Plan)"
@@ -40,6 +44,7 @@ export function registerZaiUsageCommand(pi: ExtensionAPI): void {
 					? `Estimated dollar cost: ${formatDollarCost(sessionTotals.cost)} (Platform API pricing metadata)`
 					: "Dollar cost: unavailable";
 
+			const localCost = localHistory.estimatedApiCostMicrousd / 1_000_000;
 			const lines = [
 				"Z.AI usage",
 				"",
@@ -58,6 +63,14 @@ export function registerZaiUsageCommand(pi: ExtensionAPI): void {
 				`  Session hit ratio: ${formatPercent(sessionRatios.hitRatio)}`,
 				`  Extension rolling hit ratio: ${cacheStats ? formatPercent(cacheStats.rolling.hitRatio) : "n/a"}`,
 				`  ${costInterpretation}`,
+				"",
+				"Local project history",
+				`  Recorded attempts: ${localHistory.attempts}`,
+				`  Uncached input: ${formatTokens(localHistory.inputTokens)}`,
+				`  Cached input: ${formatTokens(localHistory.cacheReadTokens)}`,
+				`  Output: ${formatTokens(localHistory.outputTokens)}`,
+				`  Cache hit ratio: ${formatPercent(localHistory.cacheHitRatio)}`,
+				`  API-equivalent cost: ${formatDollarCost(localCost)}`,
 				"",
 				"Last request",
 				lastUsage ? `  ${formatUsageLine(lastUsage)}` : "  none",

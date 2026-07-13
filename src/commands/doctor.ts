@@ -65,7 +65,7 @@ function glm52ThinkingMapOk(model: Model<any> | undefined): boolean {
 		map.low === null &&
 		map.medium === null &&
 		map.high === "high" &&
-		map.xhigh === null &&
+		map.xhigh === "max" &&
 		map.max === "max"
 	);
 }
@@ -228,7 +228,7 @@ export function registerZaiDoctorCommand(
 					name: "GLM-5.2 thinkingLevelMap",
 					status: glm52ThinkingMapOk(thinkingModel) ? "pass" : "warn",
 					detail: glm52ThinkingMapOk(thinkingModel)
-						? "off/high/max exposed; minimal/low/medium/xhigh hidden"
+						? "off/high/xhigh exposed; xhigh maps to Z.AI `max`; minimal/low/medium hidden (clamp to high)"
 						: "Unexpected thinkingLevelMap on active or default model",
 				});
 			} else {

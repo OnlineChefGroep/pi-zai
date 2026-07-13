@@ -16,7 +16,15 @@ const payload: AggregateTelemetryPayload = {
 	turnBucket: "5-20",
 	cacheRatioBucket: "75-90",
 	retryRateBucket: "0-2",
-	byProviderModel: [{ provider: "zai", model: "glm-5.2", endpointKind: "coding", attempts: 12, errors: 1 }],
+	byProviderModel: [
+		{
+			provider: "zai",
+			model: "glm-5.2",
+			endpointKind: "coding",
+			attempts: 12,
+			errors: 1,
+		},
+	],
 	errorCategories: { timeout_before_headers: 1 },
 };
 
@@ -26,7 +34,10 @@ describe("validateAggregatePayload", () => {
 	});
 
 	it("rejects forbidden keys", () => {
-		const bad = { ...payload, projectId: "abc" } as AggregateTelemetryPayload & { projectId: string };
+		const bad = {
+			...payload,
+			projectId: "abc",
+		} as AggregateTelemetryPayload & { projectId: string };
 		expect(validateAggregatePayload(bad)).toContain("forbidden");
 	});
 });

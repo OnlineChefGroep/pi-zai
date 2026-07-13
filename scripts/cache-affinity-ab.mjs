@@ -31,7 +31,9 @@ async function main() {
 		process.exit(1);
 	}
 
-	console.log("Running cache-affinity benchmark (stable vs none vs rotating)...");
+	console.log(
+		"Running cache-affinity benchmark (stable vs none vs rotating)...",
+	);
 	console.log(
 		`  model=${loaded.model} trials=${loaded.trials} turns=${loaded.turns} prefixLines=${loaded.prefixLines}`,
 	);

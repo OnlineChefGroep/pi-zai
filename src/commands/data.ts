@@ -2,8 +2,19 @@ import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getMetricsStorage, sessionState } from "../state.ts";
-import { clearLocalProjectSecret, projectIdForCwd } from "../storage/project-id.ts";
+import {
+	clearLocalProjectSecret,
+	projectIdForCwd,
+} from "../storage/project-id.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
+import {
+	formatBytes,
+	formatHeading,
+	formatKeyValue,
+	formatSection,
+	joinCommandLines,
+} from "./format.ts";
+import { formatPercent } from "./helpers.ts";
 
 function resolveProjectId(cwd: string): string {
 	return sessionState.projectId ?? projectIdForCwd(cwd);
@@ -20,13 +31,6 @@ const ACTIONS = [
 	"vacuum",
 ] as const;
 
-function formatBytes(bytes: number | undefined): string {
-	if (bytes === undefined) return "unknown";
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function formatStatus(cwd: string): string {
 	const storage = getMetricsStorage();
 	if (!storage) {
@@ -37,27 +41,41 @@ function formatStatus(cwd: string): string {
 	const status = storage.getStatus();
 	const summary = storage.getUsageSummary({ projectId });
 	const lines = [
-		"Z.AI local metrics",
-		`  Storage: ${status.kind}${status.degraded ? " (degraded)" : ""}`,
-		`  Location: ${status.location ?? "memory"}`,
-		`  Database size: ${formatBytes(status.databaseBytes)}`,
-		`  Detail rows: ${status.detailRows}`,
-		`  Rollup rows: ${status.rollupRows}`,
-		`  Benchmark rows: ${status.benchmarkRows}`,
-		`  Project hash: ${projectId}`,
-		`  Session hash: ${sessionState.sessionHash ?? "unknown"}`,
-		`  Attempts (project): ${summary.attempts}`,
-		`  Cache hit ratio (project): ${summary.cacheHitRatio > 0 ? `${(summary.cacheHitRatio * 100).toFixed(1)}%` : "n/a"}`,
+		...formatHeading("Z.AI local metrics"),
+		formatKeyValue(
+			"Storage",
+			`${status.kind}${status.degraded ? " (degraded)" : ""}`,
+		),
+		formatKeyValue("Location", status.location ?? "memory"),
+		formatKeyValue("Database size", formatBytes(status.databaseBytes)),
+		...formatSection("Rows", [
+			`Detail: ${status.detailRows}`,
+			`Rollup: ${status.rollupRows}`,
+			`Benchmark: ${status.benchmarkRows}`,
+		]),
+		...formatSection("Scope", [
+			`Project hash: ${projectId}`,
+			`Session hash: ${sessionState.sessionHash ?? "unknown"}`,
+		]),
+		...formatSection("Project usage", [
+			`Attempts: ${summary.attempts}`,
+			`Cache hit ratio: ${summary.cacheHitRatio > 0 ? formatPercent(summary.cacheHitRatio) : "n/a"}`,
+		]),
 	];
-	return lines.join("\n");
+	return joinCommandLines(lines);
 }
 
-export function registerZaiDataCommand(pi: ExtensionAPI, _deps: ZaiCommandDeps): void {
+export function registerZaiDataCommand(
+	pi: ExtensionAPI,
+	_deps: ZaiCommandDeps,
+): void {
 	pi.registerCommand("zai-data", {
 		description: "Local Z.AI metrics storage (status, wipe, export)",
 		getArgumentCompletions: (prefix) => {
 			const matches = ACTIONS.filter((value) => value.startsWith(prefix));
-			return matches.length > 0 ? matches.map((value) => ({ value, label: value })) : null;
+			return matches.length > 0
+				? matches.map((value) => ({ value, label: value }))
+				: null;
 		},
 		handler: async (args, ctx) => {
 			const storage = getMetricsStorage();
@@ -76,12 +94,18 @@ export function registerZaiDataCommand(pi: ExtensionAPI, _deps: ZaiCommandDeps):
 				case "clear-project": {
 					const projectId = resolveProjectId(ctx.cwd);
 					storage.clearProject(projectId);
-					ctx.ui.notify(`Cleared local metrics for project ${projectId}.`, "info");
+					ctx.ui.notify(
+						`Cleared local metrics for project ${projectId}.`,
+						"info",
+					);
 					return;
 				}
 				case "clear-details":
 					storage.clearDetails();
-					ctx.ui.notify("Cleared detailed attempt rows (rollups retained).", "info");
+					ctx.ui.notify(
+						"Cleared detailed attempt rows (rollups retained).",
+						"info",
+					);
 					return;
 				case "clear-benchmarks":
 					storage.clearBenchmarks();
@@ -91,7 +115,10 @@ export function registerZaiDataCommand(pi: ExtensionAPI, _deps: ZaiCommandDeps):
 					storage.clearAll();
 					clearLocalProjectSecret();
 					sessionState.projectId = undefined;
-					ctx.ui.notify("Cleared all local pi-zai metrics and rotated the local project secret.", "info");
+					ctx.ui.notify(
+						"Cleared all local pi-zai metrics and rotated the local project secret.",
+						"info",
+					);
 					return;
 				case "export-json":
 				case "export-csv": {
@@ -105,7 +132,10 @@ export function registerZaiDataCommand(pi: ExtensionAPI, _deps: ZaiCommandDeps):
 					const payload = storage.exportData(format, { projectId });
 					const target = resolve(ctx.cwd, pathArg);
 					writeFileSync(target, payload, "utf-8");
-					ctx.ui.notify(`Exported ${format.toUpperCase()} metrics to ${target}`, "info");
+					ctx.ui.notify(
+						`Exported ${format.toUpperCase()} metrics to ${target}`,
+						"info",
+					);
 					return;
 				}
 				case "vacuum":
@@ -113,7 +143,10 @@ export function registerZaiDataCommand(pi: ExtensionAPI, _deps: ZaiCommandDeps):
 					ctx.ui.notify("Vacuum completed.", "info");
 					return;
 				default:
-					ctx.ui.notify(`Unknown action "${normalized}". Try: ${ACTIONS.join(", ")}`, "warning");
+					ctx.ui.notify(
+						`Unknown action "${normalized}". Try: ${ACTIONS.join(", ")}`,
+						"warning",
+					);
 			}
 		},
 	});

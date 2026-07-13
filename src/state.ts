@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai";
-import type { ExtensionContext, SessionStartEvent, TurnEndEvent } from "@earendil-works/pi-coding-agent";
+import type {
+	ExtensionContext,
+	SessionStartEvent,
+	TurnEndEvent,
+} from "@earendil-works/pi-coding-agent";
 import { AttemptTracker } from "./attempt-tracker.ts";
 import { CacheMetricsStore } from "./cache/metrics.ts";
 import { QueryCorrelation } from "./correlation.ts";
 import type { MetricsStorage } from "./storage/types.ts";
 import { TpsTracker } from "./telemetry/tps.ts";
+import { ToolExecutionTracker } from "./tool-tracker.ts";
 
 export type ZaiEndpointKind = "coding" | "platform" | "coding-cn" | "unknown";
 
@@ -44,9 +49,18 @@ export interface ModelSelectEvent {
 }
 
 export interface ZaiHookHandlers {
-	onSessionStart?: (event: SessionStartEvent, ctx: ExtensionContext) => void | Promise<void>;
-	onModelSelect?: (event: ModelSelectEvent, ctx: ExtensionContext) => void | Promise<void>;
-	onTurnEnd?: (event: TurnEndEvent, ctx: ExtensionContext) => void | Promise<void>;
+	onSessionStart?: (
+		event: SessionStartEvent,
+		ctx: ExtensionContext,
+	) => void | Promise<void>;
+	onModelSelect?: (
+		event: ModelSelectEvent,
+		ctx: ExtensionContext,
+	) => void | Promise<void>;
+	onTurnEnd?: (
+		event: TurnEndEvent,
+		ctx: ExtensionContext,
+	) => void | Promise<void>;
 }
 
 const ZAI_PROVIDERS = new Set(["zai", "zai-coding-cn", "zai-platform"]);
@@ -55,7 +69,10 @@ export function isZaiProvider(provider: string | undefined): boolean {
 	return provider !== undefined && ZAI_PROVIDERS.has(provider);
 }
 
-export function inferEndpoint(provider: string | undefined, baseUrl?: string): ZaiEndpointKind {
+export function inferEndpoint(
+	provider: string | undefined,
+	baseUrl?: string,
+): ZaiEndpointKind {
 	if (provider === "zai-platform") return "platform";
 	if (provider === "zai-coding-cn") return "coding-cn";
 	if (provider === "zai" || baseUrl?.includes("/coding/")) return "coding";
@@ -66,7 +83,9 @@ export function newSessionAffinityId(): string {
 	return `pi-${randomUUID()}`;
 }
 
-export function createZaiSessionState(preserveThinking = false): ZaiSessionState {
+export function createZaiSessionState(
+	preserveThinking = false,
+): ZaiSessionState {
 	return {
 		preserveThinking,
 		endpoint: "unknown",
@@ -90,6 +109,7 @@ let tpsTracker = new TpsTracker();
 let metricsStorage: MetricsStorage | undefined;
 let queryCorrelation = new QueryCorrelation();
 let attemptTracker = new AttemptTracker();
+let toolExecutionTracker = new ToolExecutionTracker();
 let lastMetricsCleanupDay: string | undefined;
 
 export function getCacheMetricsStore(): CacheMetricsStore {
@@ -117,9 +137,17 @@ export function getAttemptTracker(): AttemptTracker {
 	return attemptTracker;
 }
 
+export function getToolExecutionTracker(): ToolExecutionTracker {
+	return toolExecutionTracker;
+}
+
 export function resetCorrelationState(): void {
 	queryCorrelation = new QueryCorrelation();
 	attemptTracker = new AttemptTracker();
+}
+
+export function resetToolMetrics(): void {
+	toolExecutionTracker = new ToolExecutionTracker();
 }
 
 export function resetCacheMetrics(): void {
@@ -152,5 +180,10 @@ export async function dispatchZaiHook(
 ): Promise<void> {
 	const handler = hookHandlers[name];
 	if (!handler) return;
-	await (handler as (nextEvent: typeof event, nextCtx: ExtensionContext) => void | Promise<void>)(event, ctx);
+	await (
+		handler as (
+			nextEvent: typeof event,
+			nextCtx: ExtensionContext,
+		) => void | Promise<void>
+	)(event, ctx);
 }

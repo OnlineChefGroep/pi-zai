@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { resolvePromptStability, snapshotPromptStability } from "./prompt-stability.ts";
+import {
+	resolvePromptStability,
+	snapshotPromptStability,
+} from "./prompt-stability.ts";
 
 describe("snapshotPromptStability", () => {
 	it("counts stable vs volatile lines", () => {
-		const prompt = ["Project rules", "Current git status: dirty", "Always use TypeScript"].join("\n");
+		const prompt = [
+			"Project rules",
+			"Current git status: dirty",
+			"Always use TypeScript",
+		].join("\n");
 		const snap = snapshotPromptStability(prompt);
 		expect(snap.stableLineCount).toBeGreaterThan(0);
 		expect(snap.volatileLineCount).toBeGreaterThan(0);
@@ -12,7 +19,8 @@ describe("snapshotPromptStability", () => {
 	});
 
 	it("detects explicit dynamic context marker", () => {
-		const prompt = "Project rules\n\n--- dynamic context ---\nCurrent timestamp: now";
+		const prompt =
+			"Project rules\n\n--- dynamic context ---\nCurrent timestamp: now";
 		const snap = snapshotPromptStability(prompt);
 		expect(snap.hasDynamicMarker).toBe(true);
 		expect(snap.volatileLineCount).toBeGreaterThan(0);

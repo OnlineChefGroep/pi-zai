@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_TRANSPORT_SUMMARY, EMPTY_USAGE_SUMMARY } from "../storage/types.ts";
+import {
+	EMPTY_TRANSPORT_SUMMARY,
+	EMPTY_USAGE_SUMMARY,
+} from "../storage/types.ts";
 import {
 	buildBenchmarkRunReport,
 	evaluateRunGates,
@@ -34,8 +37,12 @@ describe("buildBenchmarkRunReport", () => {
 
 		expect(report.turnsObserved).toBe(12);
 		expect(report.durationMs).toBe(4_000);
-		expect(report.gates.find((gate) => gate.id === "turns-per-session")?.passed).toBe(true);
-		expect(report.gates.find((gate) => gate.id === "sessions-per-variant")?.passed).toBe(false);
+		expect(
+			report.gates.find((gate) => gate.id === "turns-per-session")?.passed,
+		).toBe(true);
+		expect(
+			report.gates.find((gate) => gate.id === "sessions-per-variant")?.passed,
+		).toBe(false);
 	});
 });
 

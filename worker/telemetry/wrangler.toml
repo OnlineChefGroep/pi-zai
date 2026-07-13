@@ -10,5 +10,13 @@ routes = [
 binding = "PI_ZAI_TELEMETRY"
 dataset = "pi_zai_telemetry"
 
+[[ratelimits]]
+name = "PI_ZAI_RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60
+
 [observability]
 enabled = true

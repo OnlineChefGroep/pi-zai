@@ -74,6 +74,8 @@ function stableJson(value: unknown): string {
 	if (Array.isArray(value)) {
 		return `[${value.map((item) => stableJson(item)).join(",")}]`;
 	}
-	const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+	const entries = Object.entries(value as Record<string, unknown>).sort(
+		([a], [b]) => a.localeCompare(b),
+	);
 	return `{${entries.map(([key, val]) => `${JSON.stringify(key)}:${stableJson(val)}`).join(",")}}`;
 }

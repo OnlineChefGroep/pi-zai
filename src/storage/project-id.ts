@@ -1,5 +1,13 @@
 import { createHmac, randomBytes } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+	chmodSync,
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	realpathSync,
+	rmSync,
+	writeFileSync,
+} from "node:fs";
 import { join, resolve } from "node:path";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 
@@ -11,7 +19,10 @@ export function localSecretPath(): string {
 }
 
 function ensureSecretDir(): void {
-	mkdirSync(join(getAgentDir(), "state", "pi-zai"), { recursive: true, mode: 0o700 });
+	mkdirSync(join(getAgentDir(), "state", "pi-zai"), {
+		recursive: true,
+		mode: 0o700,
+	});
 }
 
 export function loadOrCreateLocalSecret(): Buffer {

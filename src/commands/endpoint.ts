@@ -4,7 +4,10 @@ import { getEndpointLabel } from "./helpers.ts";
 
 const ENDPOINTS = ["coding", "platform"] as const;
 
-export function registerZaiEndpointCommand(pi: ExtensionAPI, deps: ZaiCommandDeps): void {
+export function registerZaiEndpointCommand(
+	pi: ExtensionAPI,
+	deps: ZaiCommandDeps,
+): void {
 	pi.registerCommand("zai-endpoint", {
 		description: "Switch between Z.AI Coding Plan and Platform API endpoints",
 		getArgumentCompletions: (prefix) => {
@@ -37,7 +40,10 @@ export function registerZaiEndpointCommand(pi: ExtensionAPI, deps: ZaiCommandDep
 
 			const success = await pi.setModel(target);
 			if (!success) {
-				ctx.ui.notify(`No API key available for ${target.provider}. Configure credentials and retry.`, "error");
+				ctx.ui.notify(
+					`No API key available for ${target.provider}. Configure credentials and retry.`,
+					"error",
+				);
 				return;
 			}
 

@@ -14,7 +14,9 @@ afterEach(() => {
 	}
 });
 
-function record(overrides: Partial<ProviderAttemptRecord> = {}): ProviderAttemptRecord {
+function record(
+	overrides: Partial<ProviderAttemptRecord> = {},
+): ProviderAttemptRecord {
 	return {
 		occurredAt: Date.now(),
 		projectId: "project-a",
@@ -32,7 +34,9 @@ function record(overrides: Partial<ProviderAttemptRecord> = {}): ProviderAttempt
 	};
 }
 
-function sqliteStorage(overrides: Partial<ConstructorParameters<typeof NodeSqliteStorage>[0]> = {}): NodeSqliteStorage {
+function sqliteStorage(
+	overrides: Partial<ConstructorParameters<typeof NodeSqliteStorage>[0]> = {},
+): NodeSqliteStorage {
 	const directory = mkdtempSync(join(tmpdir(), "pi-zai-storage-"));
 	temporaryDirectories.push(directory);
 	const storage = new NodeSqliteStorage({
@@ -50,7 +54,9 @@ describe("MemoryStorage", () => {
 	it("summarizes privacy-reduced attempts and filters by project", () => {
 		const storage = new MemoryStorage();
 		storage.recordAttempt(record());
-		storage.recordAttempt(record({ projectId: "project-b", inputTokens: 50, cacheReadTokens: 50 }));
+		storage.recordAttempt(
+			record({ projectId: "project-b", inputTokens: 50, cacheReadTokens: 50 }),
+		);
 
 		expect(storage.getUsageSummary({ projectId: "project-a" })).toMatchObject({
 			attempts: 1,
@@ -83,7 +89,9 @@ describe("MemoryStorage", () => {
 			}),
 		);
 
-		expect(storage.getTransportSummary({ projectId: "project-a" })).toMatchObject({
+		expect(
+			storage.getTransportSummary({ projectId: "project-a" }),
+		).toMatchObject({
 			attempts: 2,
 			errors: 1,
 			avgRequestToHeadersMs: 200,
@@ -107,15 +115,21 @@ describe("MemoryStorage", () => {
 		expect(storage.getAnonymousDailySummary(day)).toMatchObject({
 			attempts: 2,
 			errors: 1,
-			byProviderModel: [{ provider: "zai", model: "glm-5.2", attempts: 2, errors: 1 }],
+			byProviderModel: [
+				{ provider: "zai", model: "glm-5.2", attempts: 2, errors: 1 },
+			],
 			errorCategories: { timeout_before_headers: 1 },
 		});
 		expect(storage.listTelemetryDays()).toEqual([day]);
-		expect(storage.listPendingTelemetryDays(occurredAt + 86_400_000)).toEqual([day]);
+		expect(storage.listPendingTelemetryDays(occurredAt + 86_400_000)).toEqual([
+			day,
+		]);
 
 		storage.markTelemetryDayUploaded(day, Date.now());
 		expect(storage.isTelemetryDayUploaded(day)).toBe(true);
-		expect(storage.listPendingTelemetryDays(occurredAt + 86_400_000)).toEqual([]);
+		expect(storage.listPendingTelemetryDays(occurredAt + 86_400_000)).toEqual(
+			[],
+		);
 	});
 
 	it("does not expose telemetry data when metrics are off", () => {
@@ -131,13 +145,19 @@ describe("MemoryStorage", () => {
 		const storage = new MemoryStorage();
 		const baseline = Date.now();
 		storage.recordAttempt(record({ occurredAt: baseline - 1_000 }));
-		storage.recordAttempt(record({ occurredAt: baseline + 1_000, inputTokens: 50 }));
+		storage.recordAttempt(
+			record({ occurredAt: baseline + 1_000, inputTokens: 50 }),
+		);
 
-		expect(storage.getUsageSummary({ projectId: "project-a", since: baseline })).toMatchObject({
+		expect(
+			storage.getUsageSummary({ projectId: "project-a", since: baseline }),
+		).toMatchObject({
 			attempts: 1,
 			inputTokens: 50,
 		});
-		expect(storage.getTransportSummary({ projectId: "project-a", since: baseline })).toMatchObject({
+		expect(
+			storage.getTransportSummary({ projectId: "project-a", since: baseline }),
+		).toMatchObject({
 			attempts: 1,
 		});
 	});
@@ -154,11 +174,17 @@ describe("NodeSqliteStorage", () => {
 			inputTokens: 100,
 			cacheReadTokens: 900,
 		});
-		expect(storage.exportData("json", { projectId: "project-a" })).not.toContain("project-b");
-		expect(storage.exportData("csv", { projectId: "project-a" })).toContain("cacheReadTokens");
+		expect(
+			storage.exportData("json", { projectId: "project-a" }),
+		).not.toContain("project-b");
+		expect(storage.exportData("csv", { projectId: "project-a" })).toContain(
+			"cacheReadTokens",
+		);
 
 		storage.clearProject("project-a");
-		expect(storage.getUsageSummary({ projectId: "project-a" }).attempts).toBe(0);
+		expect(storage.getUsageSummary({ projectId: "project-a" }).attempts).toBe(
+			0,
+		);
 		storage.close();
 	});
 
@@ -175,7 +201,9 @@ describe("NodeSqliteStorage", () => {
 			inputTokens: 100,
 			cacheReadTokens: 900,
 		});
-		expect(storage.getTransportSummary({ projectId: "project-a" })).toMatchObject({
+		expect(
+			storage.getTransportSummary({ projectId: "project-a" }),
+		).toMatchObject({
 			attempts: 1,
 			errors: 0,
 		});
@@ -186,7 +214,11 @@ describe("NodeSqliteStorage", () => {
 		const storage = sqliteStorage();
 		storage.recordAttempt(record());
 		storage.clearAll();
-		expect(storage.getStatus()).toMatchObject({ detailRows: 0, rollupRows: 0, benchmarkRows: 0 });
+		expect(storage.getStatus()).toMatchObject({
+			detailRows: 0,
+			rollupRows: 0,
+			benchmarkRows: 0,
+		});
 		storage.close();
 	});
 
@@ -197,11 +229,15 @@ describe("NodeSqliteStorage", () => {
 		storage.recordAttempt(record({ occurredAt }));
 
 		expect(storage.getAnonymousDailySummary(day)?.attempts).toBe(1);
-		expect(storage.listPendingTelemetryDays(occurredAt + 86_400_000)).toEqual([day]);
+		expect(storage.listPendingTelemetryDays(occurredAt + 86_400_000)).toEqual([
+			day,
+		]);
 
 		storage.markTelemetryDayUploaded(day, Date.now());
 		expect(storage.isTelemetryDayUploaded(day)).toBe(true);
-		expect(storage.listPendingTelemetryDays(occurredAt + 86_400_000)).toEqual([]);
+		expect(storage.listPendingTelemetryDays(occurredAt + 86_400_000)).toEqual(
+			[],
+		);
 		storage.close();
 	});
 

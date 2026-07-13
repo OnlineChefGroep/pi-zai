@@ -22,7 +22,10 @@ export type PlatformModelCatalogOptions = {
 	preserveThinking?: boolean;
 };
 
-function withPreserveThinking(model: ProviderModelConfig, preserveThinking: boolean): ProviderModelConfig {
+function withPreserveThinking(
+	model: ProviderModelConfig,
+	preserveThinking: boolean,
+): ProviderModelConfig {
 	if (!preserveThinking || !model.compat) return model;
 	return {
 		...model,
@@ -33,7 +36,9 @@ function withPreserveThinking(model: ProviderModelConfig, preserveThinking: bool
 	};
 }
 
-export function buildPlatformModelCatalog(options: PlatformModelCatalogOptions = {}): ProviderModelConfig[] {
+export function buildPlatformModelCatalog(
+	options: PlatformModelCatalogOptions = {},
+): ProviderModelConfig[] {
 	const preserveThinking = options.preserveThinking === true;
 	const models: ProviderModelConfig[] = [
 		{

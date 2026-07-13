@@ -37,7 +37,9 @@ interface MonitorEnvelope<T> {
 	data: T;
 }
 
-export type QuotaFetchResult = { ok: true; data: QuotaLimitData } | { ok: false; error: string };
+export type QuotaFetchResult =
+	| { ok: true; data: QuotaLimitData }
+	| { ok: false; error: string };
 
 export type QuotaFetchOptions = {
 	headers?: Record<string, string | null | undefined>;
@@ -63,7 +65,9 @@ export function monitorBaseFromModelUrl(baseUrl: string): string | undefined {
 	}
 }
 
-function normalizeHeaders(headers: Record<string, string | null | undefined> | undefined): Record<string, string> {
+function normalizeHeaders(
+	headers: Record<string, string | null | undefined> | undefined,
+): Record<string, string> {
 	const out: Record<string, string> = {
 		"Accept-Language": "en-US,en",
 		"Content-Type": "application/json",
@@ -77,7 +81,10 @@ function normalizeHeaders(headers: Record<string, string | null | undefined> | u
 	return out;
 }
 
-function authorizationSchemes(apiKey: string, headers: Record<string, string>): string[] {
+function authorizationSchemes(
+	apiKey: string,
+	headers: Record<string, string>,
+): string[] {
 	const existing = headers.Authorization ?? headers.authorization;
 	const schemes = new Set<string>();
 	if (existing) schemes.add(existing);
@@ -132,7 +139,9 @@ export async function fetchQuotaLimit(
 				lastError = result.error;
 			} catch (error) {
 				const cause =
-					error instanceof Error && "cause" in error && error.cause instanceof Error
+					error instanceof Error &&
+					"cause" in error &&
+					error.cause instanceof Error
 						? error.cause.message
 						: undefined;
 				lastError = cause
@@ -161,7 +170,10 @@ function windowLabel(entry: QuotaLimitEntry): string {
 	return `${entry.number}-${unit}${plural} ${scope}`;
 }
 
-export function formatResetCountdown(nextResetTime: number | undefined, now = Date.now()): string {
+export function formatResetCountdown(
+	nextResetTime: number | undefined,
+	now = Date.now(),
+): string {
 	if (!nextResetTime) return "";
 	const diffMs = nextResetTime - now;
 	if (diffMs <= 0) return "reset soon";
@@ -179,7 +191,10 @@ function bar(percentage: number, width = 20): string {
 	return `${"#".repeat(filled)}${"-".repeat(width - filled)}`;
 }
 
-export function formatQuotaLimit(data: QuotaLimitData, now = Date.now()): string[] {
+export function formatQuotaLimit(
+	data: QuotaLimitData,
+	now = Date.now(),
+): string[] {
 	const lines = [`Coding Plan quota (${levelLabel(data.level)})`];
 	for (const entry of data.limits) {
 		const label = windowLabel(entry).padEnd(20);
@@ -187,13 +202,19 @@ export function formatQuotaLimit(data: QuotaLimitData, now = Date.now()): string
 		if (entry.type === "TIME_LIMIT") {
 			const used = entry.currentValue ?? 0;
 			const cap = entry.usage ?? 0;
-			lines.push(`  ${label} ${used}/${cap} (${entry.percentage}%) ${bar(entry.percentage)} ${reset}`.trimEnd());
+			lines.push(
+				`  ${label} ${used}/${cap} (${entry.percentage}%) ${bar(entry.percentage)} ${reset}`.trimEnd(),
+			);
 			if (entry.usageDetails?.length) {
-				const detail = entry.usageDetails.map((d) => `${d.modelCode}: ${d.usage}`).join(" · ");
+				const detail = entry.usageDetails
+					.map((d) => `${d.modelCode}: ${d.usage}`)
+					.join(" · ");
 				lines.push(`    ${detail}`);
 			}
 		} else {
-			lines.push(`  ${label} ${entry.percentage}% ${bar(entry.percentage)} ${reset}`.trimEnd());
+			lines.push(
+				`  ${label} ${entry.percentage}% ${bar(entry.percentage)} ${reset}`.trimEnd(),
+			);
 		}
 	}
 	return lines;

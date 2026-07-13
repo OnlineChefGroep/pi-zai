@@ -1,9 +1,17 @@
-import { analyzeSystemPromptSections, canonicalStableSystemPrefix, fingerprintSystemPrompt } from "./cache/index.ts";
+import {
+	analyzeSystemPromptSections,
+	canonicalStableSystemPrefix,
+	fingerprintSystemPrompt,
+} from "./cache/index.ts";
 import type { ZaiSessionState } from "./state.ts";
 
-export type PromptStabilitySnapshot = NonNullable<ZaiSessionState["promptStability"]>;
+export type PromptStabilitySnapshot = NonNullable<
+	ZaiSessionState["promptStability"]
+>;
 
-export function snapshotPromptStability(systemPrompt: string): PromptStabilitySnapshot {
+export function snapshotPromptStability(
+	systemPrompt: string,
+): PromptStabilitySnapshot {
 	const stablePrefix = canonicalStableSystemPrefix(systemPrompt);
 	const analysis = analyzeSystemPromptSections(systemPrompt);
 	return {

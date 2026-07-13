@@ -20,5 +20,8 @@ export function updateZaiTpsStatus(
 	if (!ctx.hasUI || config.statusTps === false || !sample || sample.tps <= 0) {
 		return;
 	}
-	ctx.ui.setStatus(STATUS_KEY, formatTpsStatusLine(sample, stats.rolling, config.statusTpsAvg === true));
+	ctx.ui.setStatus(
+		STATUS_KEY,
+		formatTpsStatusLine(sample, stats.rolling, config.statusTpsAvg === true),
+	);
 }

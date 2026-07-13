@@ -34,4 +34,34 @@ describe("AttemptTracker lifecycle", () => {
 			totalMs: 500,
 		});
 	});
+
+	it("records first tool delta relative to request start", () => {
+		const tracker = new AttemptTracker();
+		tracker.beginAttempt({
+			queryId: "q-1",
+			requestId: "q-1-a1",
+			attempt: 1,
+			payloadFingerprint: "fp",
+			now: 1000,
+		});
+		tracker.markFirstToolDelta(1400);
+		const record = tracker.buildRecord({
+			projectId: "project-a",
+			sessionHash: "session-a",
+			provider: "zai",
+			model: "glm-5.2",
+			endpointKind: "coding",
+			extensionVersion: "0.3.0",
+			occurredAt: 1600,
+			toolCallsInTurn: 2,
+			toolErrorsInTurn: 0,
+			toolDurationMsTotal: 300,
+		});
+		expect(record).toMatchObject({
+			requestToFirstToolDeltaMs: 400,
+			toolCallsInTurn: 2,
+			toolErrorsInTurn: 0,
+			toolDurationMsTotal: 300,
+		});
+	});
 });

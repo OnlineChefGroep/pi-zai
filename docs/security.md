@@ -71,7 +71,8 @@ Default: `zai.metrics.mode: "local"`. Each Z.AI provider attempt can be recorded
 | `thinkingLevel`, `extensionVersion` | Config context |
 | `systemFingerprint`, `toolsetFingerprint`, `payloadFingerprint` | Short hashes only — **local SQLite only** |
 | Token counters | `input`, `cacheRead`, `cacheWrite`, `output` |
-| Latency | `requestToHeadersMs`, `requestToFirstDeltaMs`, `totalMs` |
+| Latency | `requestToHeadersMs`, `requestToFirstDeltaMs`, `requestToFirstToolDeltaMs`, `totalMs` |
+| Tool aggregates | `toolCallsInTurn`, `toolErrorsInTurn`, `toolDurationMsTotal` — counts/durations only, never args/results |
 | `httpStatus`, `errorCategory` | Controlled category labels — no raw error bodies |
 | `estimatedApiCostMicrousd` | Derived from usage metadata |
 

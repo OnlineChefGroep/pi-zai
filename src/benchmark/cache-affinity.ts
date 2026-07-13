@@ -53,7 +53,11 @@ export type BenchmarkReport = {
 
 const MODES: SessionHeaderMode[] = ["stable", "none", "rotating"];
 
-export function sessionHeaderForMode(mode: SessionHeaderMode, stableId: string, turn: number): string | undefined {
+export function sessionHeaderForMode(
+	mode: SessionHeaderMode,
+	stableId: string,
+	turn: number,
+): string | undefined {
 	switch (mode) {
 		case "stable":
 			return stableId;
@@ -90,13 +94,21 @@ function percentile(sorted: number[], p: number): number {
 	return (sorted[lo] ?? 0) * (1 - weight) + (sorted[hi] ?? 0) * weight;
 }
 
-export function summarizeMode(mode: SessionHeaderMode, trials: TrialResult[], turnsPerTrial: number): ModeSummary {
+export function summarizeMode(
+	mode: SessionHeaderMode,
+	trials: TrialResult[],
+	turnsPerTrial: number,
+): ModeSummary {
 	const trialRatios = trials.map((t) => warmCacheHitRatio(t.turns));
 	const sorted = [...trialRatios].sort((a, b) => a - b);
-	const warmTurns = trials.flatMap((t) => t.turns.slice(1)).filter((t) => !t.error);
+	const warmTurns = trials
+		.flatMap((t) => t.turns.slice(1))
+		.filter((t) => !t.error);
 	const cached = warmTurns.reduce((sum, t) => sum + t.cachedTokens, 0);
 	const prompt = warmTurns.reduce((sum, t) => sum + t.promptTokens, 0);
-	const latencies = trials.flatMap((t) => t.turns.filter((x) => !x.error).map((x) => x.latencyMs));
+	const latencies = trials.flatMap((t) =>
+		t.turns.filter((x) => !x.error).map((x) => x.latencyMs),
+	);
 	const errors = trials.flatMap((t) => t.turns).filter((t) => t.error).length;
 
 	return {
@@ -108,16 +120,23 @@ export function summarizeMode(mode: SessionHeaderMode, trials: TrialResult[], tu
 		warmCacheHitRatioMedian: percentile(sorted, 0.5),
 		warmCacheHitRatioP25: percentile(sorted, 0.25),
 		warmCacheHitRatioP75: percentile(sorted, 0.75),
-		avgLatencyMs: latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0,
+		avgLatencyMs:
+			latencies.length > 0
+				? latencies.reduce((a, b) => a + b, 0) / latencies.length
+				: 0,
 		errors,
 		trialRatios,
 	};
 }
 
-export function pickWinner(summaries: ModeSummary[]): SessionHeaderMode | "inconclusive" {
+export function pickWinner(
+	summaries: ModeSummary[],
+): SessionHeaderMode | "inconclusive" {
 	const eligible = summaries.filter((s) => s.warmTurns > 0);
 	if (eligible.length < 2) return "inconclusive";
-	const sorted = [...eligible].sort((a, b) => b.warmCacheHitRatioMedian - a.warmCacheHitRatioMedian);
+	const sorted = [...eligible].sort(
+		(a, b) => b.warmCacheHitRatioMedian - a.warmCacheHitRatioMedian,
+	);
 	const best = sorted[0];
 	const second = sorted[1];
 	if (!best || !second) return "inconclusive";
@@ -128,8 +147,13 @@ export function pickWinner(summaries: ModeSummary[]): SessionHeaderMode | "incon
 	return best.mode;
 }
 
-export function buildReport(config: BenchmarkConfig, byMode: Map<SessionHeaderMode, TrialResult[]>): BenchmarkReport {
-	const summaries = MODES.map((mode) => summarizeMode(mode, byMode.get(mode) ?? [], config.turns));
+export function buildReport(
+	config: BenchmarkConfig,
+	byMode: Map<SessionHeaderMode, TrialResult[]>,
+): BenchmarkReport {
+	const summaries = MODES.map((mode) =>
+		summarizeMode(mode, byMode.get(mode) ?? [], config.turns),
+	);
 	return {
 		config: {
 			baseUrl: config.baseUrl,
@@ -163,7 +187,9 @@ export function formatReport(report: BenchmarkReport): string {
 		lines.push(
 			`  ${s.mode.padEnd(9)} median=${formatPercent(s.warmCacheHitRatioMedian)} p25=${formatPercent(s.warmCacheHitRatioP25)} p75=${formatPercent(s.warmCacheHitRatioP75)} aggregate=${formatPercent(s.warmCacheHitRatio)} errors=${s.errors} avgLatency=${Math.round(s.avgLatencyMs)}ms`,
 		);
-		lines.push(`             per-trial: ${s.trialRatios.map((r) => formatPercent(r)).join(", ")}`);
+		lines.push(
+			`             per-trial: ${s.trialRatios.map((r) => formatPercent(r)).join(", ")}`,
+		);
 	}
 	lines.push("");
 	lines.push(`Winner: ${report.winner} (>=5pp median gap required)`);
@@ -171,7 +197,9 @@ export function formatReport(report: BenchmarkReport): string {
 	lines.push("Interpretation:");
 	lines.push("  stable   = fixed X-Session-Id (pi-zai default)");
 	lines.push("  none     = no X-Session-Id (baseline pi)");
-	lines.push("  rotating = new X-Session-Id every turn (anti-affinity control)");
+	lines.push(
+		"  rotating = new X-Session-Id every turn (anti-affinity control)",
+	);
 	return lines.join("\n");
 }
 
@@ -179,7 +207,10 @@ async function sleep(ms: number): Promise<void> {
 	await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-type ChatUsage = { prompt_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
+type ChatUsage = {
+	prompt_tokens?: number;
+	prompt_tokens_details?: { cached_tokens?: number };
+};
 
 export async function runSingleTurn(
 	config: BenchmarkConfig,
@@ -248,7 +279,13 @@ export async function runSingleTurn(
 			};
 		}
 	}
-	return { turn: 0, promptTokens: 0, cachedTokens: 0, latencyMs: Date.now() - started, error: "exhausted retries" };
+	return {
+		turn: 0,
+		promptTokens: 0,
+		cachedTokens: 0,
+		latencyMs: Date.now() - started,
+		error: "exhausted retries",
+	};
 }
 
 export async function runTrial(
@@ -263,7 +300,10 @@ export async function runTrial(
 	const turns: TurnResult[] = [];
 
 	for (let turn = 0; turn < config.turns; turn += 1) {
-		messages.push({ role: "user", content: `Turn ${turn}: name one sorting algorithm in <=3 words.` });
+		messages.push({
+			role: "user",
+			content: `Turn ${turn}: name one sorting algorithm in <=3 words.`,
+		});
 		const header = sessionHeaderForMode(mode, stableId, turn);
 		const result = await runSingleTurn(config, system, messages, header);
 		turns.push({ ...result, turn });
@@ -276,7 +316,9 @@ export async function runTrial(
 	return { mode, trial: trialIndex, nonce, turns };
 }
 
-export async function runCacheAffinityBenchmark(config: BenchmarkConfig): Promise<BenchmarkReport> {
+export async function runCacheAffinityBenchmark(
+	config: BenchmarkConfig,
+): Promise<BenchmarkReport> {
 	const byMode = new Map<SessionHeaderMode, TrialResult[]>();
 	for (const mode of MODES) {
 		const trials: TrialResult[] = [];
@@ -291,7 +333,9 @@ export async function runCacheAffinityBenchmark(config: BenchmarkConfig): Promis
 	return buildReport(config, byMode);
 }
 
-export function loadBenchmarkConfigFromEnv(env: NodeJS.ProcessEnv = process.env): BenchmarkConfig | { error: string } {
+export function loadBenchmarkConfigFromEnv(
+	env: NodeJS.ProcessEnv = process.env,
+): BenchmarkConfig | { error: string } {
 	const apiKey = env.ZAI_API_KEY ?? env.ZAI_CODING_API_KEY;
 	if (!apiKey) {
 		return { error: "Set ZAI_API_KEY or ZAI_CODING_API_KEY" };

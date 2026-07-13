@@ -1,7 +1,11 @@
 import { existsSync, mkdirSync, rmSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync, type StatementSync } from "node:sqlite";
-import type { BenchmarkRunManifest, BenchmarkRunRecord, BenchmarkRunReport } from "../benchmark/types.ts";
+import type {
+	BenchmarkRunManifest,
+	BenchmarkRunRecord,
+	BenchmarkRunReport,
+} from "../benchmark/types.ts";
 import {
 	endpointKindFromProvider,
 	mergeAnonymousDailySummaries,
@@ -9,7 +13,11 @@ import {
 	utcDayFromMs,
 } from "./anonymous-daily.ts";
 import { MemoryStorage } from "./memory.ts";
-import { INITIAL_SCHEMA_SQL, SCHEMA_VERSION } from "./migrations.ts";
+import {
+	INITIAL_SCHEMA_SQL,
+	SCHEMA_MIGRATIONS,
+	SCHEMA_VERSION,
+} from "./migrations.ts";
 import {
 	type AnonymousDailySummary,
 	type CleanupResult,
@@ -39,12 +47,14 @@ INSERT INTO provider_attempts (
   provider, model, endpoint_kind, thinking_level, pi_version, extension_version,
   system_fingerprint, toolset_fingerprint, payload_fingerprint,
   input_tokens, cache_read_tokens, cache_write_tokens, output_tokens,
-  request_to_headers_ms, request_to_first_delta_ms, total_ms,
-  http_status, error_category, estimated_api_cost_microusd
+  request_to_headers_ms, request_to_first_delta_ms, request_to_first_tool_delta_ms, total_ms,
+  http_status, error_category, estimated_api_cost_microusd,
+  tool_calls_in_turn, tool_errors_in_turn, tool_duration_ms_total
 ) VALUES (
   ?, ?, ?, ?, ?, ?,
   ?, ?, ?, ?, ?, ?,
   ?, ?, ?,
+  ?, ?, ?, ?,
   ?, ?, ?, ?,
   ?, ?, ?,
   ?, ?, ?
@@ -103,13 +113,16 @@ export class NodeSqliteStorage implements MetricsStorage {
 		database.exec("PRAGMA auto_vacuum = INCREMENTAL;");
 		database.exec("PRAGMA busy_timeout = 25;");
 		database.exec(INITIAL_SCHEMA_SQL);
+		migrateSchema(database);
 		database
 			.prepare(
 				"INSERT INTO schema_meta(key, value) VALUES ('schema_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
 			)
 			.run(String(SCHEMA_VERSION));
 		database
-			.prepare("INSERT INTO schema_meta(key, value) VALUES ('created_at', ?) ON CONFLICT(key) DO NOTHING")
+			.prepare(
+				"INSERT INTO schema_meta(key, value) VALUES ('created_at', ?) ON CONFLICT(key) DO NOTHING",
+			)
 			.run(String(Date.now()));
 		this.insertAttempt = database.prepare(INSERT_ATTEMPT_SQL);
 	}
@@ -140,10 +153,14 @@ export class NodeSqliteStorage implements MetricsStorage {
 				record.outputTokens ?? null,
 				record.requestToHeadersMs ?? null,
 				record.requestToFirstDeltaMs ?? null,
+				record.requestToFirstToolDeltaMs ?? null,
 				record.totalMs ?? null,
 				record.httpStatus ?? null,
 				record.errorCategory ?? null,
 				record.estimatedApiCostMicrousd ?? null,
+				record.toolCallsInTurn ?? null,
+				record.toolErrorsInTurn ?? null,
+				record.toolDurationMsTotal ?? null,
 			);
 		} catch (error) {
 			this.degrade(error);
@@ -184,9 +201,14 @@ SELECT
 FROM daily_rollups${rollupQuery.where}`)
 				.get(...rollupQuery.values) as SqlRow;
 
-			const inputTokens = numberValue(detail.input_tokens) + numberValue(rollup.input_tokens);
-			const cacheReadTokens = numberValue(detail.cache_read_tokens) + numberValue(rollup.cache_read_tokens);
-			const cacheWriteTokens = numberValue(detail.cache_write_tokens) + numberValue(rollup.cache_write_tokens);
+			const inputTokens =
+				numberValue(detail.input_tokens) + numberValue(rollup.input_tokens);
+			const cacheReadTokens =
+				numberValue(detail.cache_read_tokens) +
+				numberValue(rollup.cache_read_tokens);
+			const cacheWriteTokens =
+				numberValue(detail.cache_write_tokens) +
+				numberValue(rollup.cache_write_tokens);
 			const totalPrompt = inputTokens + cacheReadTokens + cacheWriteTokens;
 			return {
 				attempts: numberValue(detail.attempts) + numberValue(rollup.attempts),
@@ -194,9 +216,11 @@ FROM daily_rollups${rollupQuery.where}`)
 				inputTokens,
 				cacheReadTokens,
 				cacheWriteTokens,
-				outputTokens: numberValue(detail.output_tokens) + numberValue(rollup.output_tokens),
+				outputTokens:
+					numberValue(detail.output_tokens) + numberValue(rollup.output_tokens),
 				estimatedApiCostMicrousd:
-					numberValue(detail.estimated_api_cost_microusd) + numberValue(rollup.estimated_api_cost_microusd),
+					numberValue(detail.estimated_api_cost_microusd) +
+					numberValue(rollup.estimated_api_cost_microusd),
 				cacheHitRatio: totalPrompt > 0 ? cacheReadTokens / totalPrompt : 0,
 				firstOccurredAt: earliestTimestamp(
 					optionalNumber(detail.first_occurred_at),
@@ -224,6 +248,7 @@ SELECT
   COALESCE(SUM(CASE WHEN error_category IS NOT NULL OR http_status >= 400 THEN 1 ELSE 0 END), 0) AS errors,
   AVG(request_to_headers_ms) AS avg_request_to_headers_ms,
   AVG(request_to_first_delta_ms) AS avg_request_to_first_delta_ms,
+  AVG(request_to_first_tool_delta_ms) AS avg_request_to_first_tool_delta_ms,
   AVG(total_ms) AS avg_total_ms
 FROM provider_attempts${detailQuery.where}`)
 				.get(...detailQuery.values) as SqlRow;
@@ -251,8 +276,15 @@ GROUP BY error_category`)
 			return {
 				attempts: numberValue(row.attempts) + numberValue(rollup.attempts),
 				errors: numberValue(row.errors) + numberValue(rollup.errors),
-				avgRequestToHeadersMs: roundOptionalAverage(row.avg_request_to_headers_ms),
-				avgRequestToFirstDeltaMs: roundOptionalAverage(row.avg_request_to_first_delta_ms),
+				avgRequestToHeadersMs: roundOptionalAverage(
+					row.avg_request_to_headers_ms,
+				),
+				avgRequestToFirstDeltaMs: roundOptionalAverage(
+					row.avg_request_to_first_delta_ms,
+				),
+				avgRequestToFirstToolDeltaMs: roundOptionalAverage(
+					row.avg_request_to_first_tool_delta_ms,
+				),
 				avgTotalMs: roundOptionalAverage(row.avg_total_ms),
 				errorCategories,
 			};
@@ -265,7 +297,12 @@ GROUP BY error_category`)
 	getStatus(): StorageStatus {
 		if (!this.database) {
 			const fallback = this.fallback.getStatus();
-			return { ...fallback, kind: "sqlite", location: this.options.databasePath, degraded: true };
+			return {
+				...fallback,
+				kind: "sqlite",
+				location: this.options.databasePath,
+				degraded: true,
+			};
 		}
 		try {
 			const detailRows = count(this.database, "provider_attempts");
@@ -281,13 +318,20 @@ GROUP BY error_category`)
 				detailRows,
 				rollupRows,
 				benchmarkRows,
-				lastCleanupAt: lastCleanup ? optionalNumber(lastCleanup.value) : undefined,
+				lastCleanupAt: lastCleanup
+					? optionalNumber(lastCleanup.value)
+					: undefined,
 				degraded: this.degraded,
 			};
 		} catch (error) {
 			this.degrade(error);
 			const fallback = this.fallback.getStatus();
-			return { ...fallback, kind: "sqlite", location: this.options.databasePath, degraded: true };
+			return {
+				...fallback,
+				kind: "sqlite",
+				location: this.options.databasePath,
+				degraded: true,
+			};
 		}
 	}
 
@@ -297,13 +341,22 @@ GROUP BY error_category`)
 			const lastCleanupRow = this.database
 				.prepare("SELECT value FROM schema_meta WHERE key = 'last_cleanup_at'")
 				.get() as SqlRow | undefined;
-			const lastCleanupAt = lastCleanupRow ? numberValue(lastCleanupRow.value) : 0;
+			const lastCleanupAt = lastCleanupRow
+				? numberValue(lastCleanupRow.value)
+				: 0;
 			if (!force && sameUtcDay(lastCleanupAt, now)) {
-				return { attemptsDeleted: 0, rollupsDeleted: 0, benchmarksDeleted: 0, ran: false };
+				return {
+					attemptsDeleted: 0,
+					rollupsDeleted: 0,
+					benchmarksDeleted: 0,
+					ran: false,
+				};
 			}
 
 			const detailsCutoff = now - this.options.retentionDays * 86_400_000;
-			const rollupCutoffDay = new Date(now - this.options.rollupRetentionDays * 86_400_000)
+			const rollupCutoffDay = new Date(
+				now - this.options.rollupRetentionDays * 86_400_000,
+			)
 				.toISOString()
 				.slice(0, 10);
 			const abandonedBenchmarkCutoff = now - 7 * 86_400_000;
@@ -312,16 +365,24 @@ GROUP BY error_category`)
 			let rollupsDeleted = 0;
 			let benchmarksDeleted = 0;
 			try {
-				this.database.prepare(ROLLUP_ATTEMPTS_OLDER_THAN_SQL).run(detailsCutoff);
+				this.database
+					.prepare(ROLLUP_ATTEMPTS_OLDER_THAN_SQL)
+					.run(detailsCutoff);
 				attemptsDeleted = Number(
-					this.database.prepare("DELETE FROM provider_attempts WHERE occurred_at < ?").run(detailsCutoff).changes,
+					this.database
+						.prepare("DELETE FROM provider_attempts WHERE occurred_at < ?")
+						.run(detailsCutoff).changes,
 				);
 				rollupsDeleted = Number(
-					this.database.prepare("DELETE FROM daily_rollups WHERE day < ?").run(rollupCutoffDay).changes,
+					this.database
+						.prepare("DELETE FROM daily_rollups WHERE day < ?")
+						.run(rollupCutoffDay).changes,
 				);
 				benchmarksDeleted = Number(
 					this.database
-						.prepare("DELETE FROM benchmark_runs WHERE completed_at IS NULL AND created_at < ?")
+						.prepare(
+							"DELETE FROM benchmark_runs WHERE completed_at IS NULL AND created_at < ?",
+						)
 						.run(abandonedBenchmarkCutoff).changes,
 				);
 				this.database
@@ -346,19 +407,27 @@ GROUP BY error_category`)
 
 	clearProject(projectId: string): void {
 		this.executeOrDegrade(() => {
-			this.database?.prepare("DELETE FROM provider_attempts WHERE project_id = ?").run(projectId);
-			this.database?.prepare("DELETE FROM daily_rollups WHERE project_id = ?").run(projectId);
+			this.database
+				?.prepare("DELETE FROM provider_attempts WHERE project_id = ?")
+				.run(projectId);
+			this.database
+				?.prepare("DELETE FROM daily_rollups WHERE project_id = ?")
+				.run(projectId);
 		});
 		this.fallback.clearProject(projectId);
 	}
 
 	clearDetails(): void {
-		this.executeOrDegrade(() => this.database?.exec("DELETE FROM provider_attempts;"));
+		this.executeOrDegrade(() =>
+			this.database?.exec("DELETE FROM provider_attempts;"),
+		);
 		this.fallback.clearDetails();
 	}
 
 	clearBenchmarks(): void {
-		this.executeOrDegrade(() => this.database?.exec("DELETE FROM benchmark_runs;"));
+		this.executeOrDegrade(() =>
+			this.database?.exec("DELETE FROM benchmark_runs;"),
+		);
 		this.fallback.clearBenchmarks();
 	}
 
@@ -370,7 +439,13 @@ GROUP BY error_category`)
 				.prepare(
 					"INSERT INTO benchmark_runs(run_id, created_at, variant, scenario, manifest_json) VALUES (?, ?, ?, ?, ?)",
 				)
-				.run(manifest.runId, manifest.createdAt, manifest.variant, manifest.scenario, JSON.stringify(manifest));
+				.run(
+					manifest.runId,
+					manifest.createdAt,
+					manifest.variant,
+					manifest.scenario,
+					JSON.stringify(manifest),
+				);
 		} catch (error) {
 			this.degrade(error);
 		}
@@ -381,7 +456,9 @@ GROUP BY error_category`)
 		if (!this.database) return completed;
 		try {
 			const result = this.database
-				.prepare("UPDATE benchmark_runs SET completed_at = ?, report_json = ? WHERE run_id = ?")
+				.prepare(
+					"UPDATE benchmark_runs SET completed_at = ?, report_json = ? WHERE run_id = ?",
+				)
 				.run(report.completedAt, JSON.stringify(report), runId);
 			return completed || Number(result.changes) > 0;
 		} catch (error) {
@@ -512,12 +589,30 @@ GROUP BY provider, model`,
 			const rollupSummary: AnonymousDailySummary | undefined =
 				rollupRows.length > 0
 					? {
-							attempts: rollupRows.reduce((sum, row) => sum + numberValue(row.attempts), 0),
-							errors: rollupRows.reduce((sum, row) => sum + numberValue(row.errors), 0),
-							inputTokens: rollupRows.reduce((sum, row) => sum + numberValue(row.input_tokens), 0),
-							cacheReadTokens: rollupRows.reduce((sum, row) => sum + numberValue(row.cache_read_tokens), 0),
-							cacheWriteTokens: rollupRows.reduce((sum, row) => sum + numberValue(row.cache_write_tokens), 0),
-							outputTokens: rollupRows.reduce((sum, row) => sum + numberValue(row.output_tokens), 0),
+							attempts: rollupRows.reduce(
+								(sum, row) => sum + numberValue(row.attempts),
+								0,
+							),
+							errors: rollupRows.reduce(
+								(sum, row) => sum + numberValue(row.errors),
+								0,
+							),
+							inputTokens: rollupRows.reduce(
+								(sum, row) => sum + numberValue(row.input_tokens),
+								0,
+							),
+							cacheReadTokens: rollupRows.reduce(
+								(sum, row) => sum + numberValue(row.cache_read_tokens),
+								0,
+							),
+							cacheWriteTokens: rollupRows.reduce(
+								(sum, row) => sum + numberValue(row.cache_write_tokens),
+								0,
+							),
+							outputTokens: rollupRows.reduce(
+								(sum, row) => sum + numberValue(row.output_tokens),
+								0,
+							),
 							byProviderModel: rollupRows.map((row) => ({
 								provider: String(row.provider),
 								model: String(row.model),
@@ -530,7 +625,9 @@ GROUP BY provider, model`,
 					: undefined;
 
 			const merged = mergeAnonymousDailySummaries(
-				[detailSummary, rollupSummary].filter((summary): summary is AnonymousDailySummary => summary !== undefined),
+				[detailSummary, rollupSummary].filter(
+					(summary): summary is AnonymousDailySummary => summary !== undefined,
+				),
 			);
 			if (!merged) return undefined;
 
@@ -574,15 +671,17 @@ ORDER BY day ASC`,
 
 	listPendingTelemetryDays(now = Date.now()): string[] {
 		const today = utcDayFromMs(now);
-		return this.listTelemetryDays().filter((day) => day < today && !this.isTelemetryDayUploaded(day));
+		return this.listTelemetryDays().filter(
+			(day) => day < today && !this.isTelemetryDayUploaded(day),
+		);
 	}
 
 	isTelemetryDayUploaded(day: string): boolean {
 		if (!this.database) return this.fallback.isTelemetryDayUploaded(day);
 		try {
-			const row = this.database.prepare("SELECT day FROM telemetry_uploads WHERE day = ?").get(day) as
-				| SqlRow
-				| undefined;
+			const row = this.database
+				.prepare("SELECT day FROM telemetry_uploads WHERE day = ?")
+				.get(day) as SqlRow | undefined;
 			return row !== undefined;
 		} catch (error) {
 			this.degrade(error);
@@ -624,11 +723,18 @@ ORDER BY day ASC`,
 	}
 
 	private enforceSizeLimit(now: number): void {
-		if (!this.database || databaseFootprint(this.options.databasePath) <= this.options.maxDatabaseBytes) return;
+		if (
+			!this.database ||
+			databaseFootprint(this.options.databasePath) <=
+				this.options.maxDatabaseBytes
+		)
+			return;
 		const preserveSince = now - 7 * 86_400_000;
 		for (
 			let batch = 0;
-			batch < 20 && databaseFootprint(this.options.databasePath) > this.options.maxDatabaseBytes;
+			batch < 20 &&
+			databaseFootprint(this.options.databasePath) >
+				this.options.maxDatabaseBytes;
 			batch += 1
 		) {
 			this.database.prepare(ROLLUP_ATTEMPTS_OLDER_THAN_SQL).run(preserveSince);
@@ -652,12 +758,17 @@ ORDER BY day ASC`,
 		if (!this.warned) {
 			this.warned = true;
 			const detail = error instanceof Error ? error.message : String(error);
-			this.options.onWarning?.(`pi-zai SQLite disabled for this session; using memory-only metrics (${detail}).`);
+			this.options.onWarning?.(
+				`pi-zai SQLite disabled for this session; using memory-only metrics (${detail}).`,
+			);
 		}
 	}
 }
 
-function buildErrorCategoryWhere(filter: UsageFilter): { where: string; values: Array<string | number> } {
+function buildErrorCategoryWhere(filter: UsageFilter): {
+	where: string;
+	values: Array<string | number>;
+} {
 	const base = buildWhere(filter);
 	const clause = "error_category IS NOT NULL";
 	return base.where.length > 0
@@ -671,7 +782,10 @@ function roundOptionalAverage(value: unknown): number | undefined {
 	return Number.isFinite(average) ? Math.round(average) : undefined;
 }
 
-function buildWhere(filter: UsageFilter): { where: string; values: Array<string | number> } {
+function buildWhere(filter: UsageFilter): {
+	where: string;
+	values: Array<string | number>;
+} {
 	const clauses: string[] = [];
 	const values: Array<string | number> = [];
 	if (filter.projectId !== undefined) {
@@ -682,10 +796,16 @@ function buildWhere(filter: UsageFilter): { where: string; values: Array<string 
 		clauses.push("occurred_at >= ?");
 		values.push(filter.since);
 	}
-	return { where: clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "", values };
+	return {
+		where: clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "",
+		values,
+	};
 }
 
-function buildRollupWhere(filter: UsageFilter): { where: string; values: string[] } {
+function buildRollupWhere(filter: UsageFilter): {
+	where: string;
+	values: string[];
+} {
 	const clauses: string[] = [];
 	const values: string[] = [];
 	if (filter.projectId !== undefined) {
@@ -696,11 +816,16 @@ function buildRollupWhere(filter: UsageFilter): { where: string; values: string[
 		clauses.push("day >= ?");
 		values.push(new Date(filter.since).toISOString().slice(0, 10));
 	}
-	return { where: clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "", values };
+	return {
+		where: clauses.length > 0 ? ` WHERE ${clauses.join(" AND ")}` : "",
+		values,
+	};
 }
 
 function rowToBenchmarkRun(row: SqlRow): BenchmarkRunRecord {
-	const manifest = JSON.parse(String(row.manifest_json)) as BenchmarkRunManifest;
+	const manifest = JSON.parse(
+		String(row.manifest_json),
+	) as BenchmarkRunManifest;
 	const reportJson = row.report_json;
 	const report =
 		reportJson === null || reportJson === undefined
@@ -740,15 +865,49 @@ function rowToRecord(row: SqlRow): ProviderAttemptRecord {
 		outputTokens: optionalNumber(row.output_tokens),
 		requestToHeadersMs: optionalNumber(row.request_to_headers_ms),
 		requestToFirstDeltaMs: optionalNumber(row.request_to_first_delta_ms),
+		requestToFirstToolDeltaMs: optionalNumber(
+			row.request_to_first_tool_delta_ms,
+		),
 		totalMs: optionalNumber(row.total_ms),
 		httpStatus: optionalNumber(row.http_status),
 		errorCategory: optionalString(row.error_category),
 		estimatedApiCostMicrousd: optionalNumber(row.estimated_api_cost_microusd),
+		toolCallsInTurn: optionalNumber(row.tool_calls_in_turn),
+		toolErrorsInTurn: optionalNumber(row.tool_errors_in_turn),
+		toolDurationMsTotal: optionalNumber(row.tool_duration_ms_total),
 	};
 }
 
-function count(database: DatabaseSync, table: "provider_attempts" | "daily_rollups" | "benchmark_runs"): number {
-	const row = database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get() as SqlRow;
+function migrateSchema(database: DatabaseSync): void {
+	const current = Number(
+		(
+			database
+				.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'")
+				.get() as SqlRow | undefined
+		)?.value ?? 1,
+	);
+	for (let version = current + 1; version <= SCHEMA_VERSION; version += 1) {
+		const statements = SCHEMA_MIGRATIONS[version] ?? [];
+		for (const statement of statements) {
+			try {
+				database.exec(statement);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				if (!/duplicate column name/i.test(message)) {
+					throw error;
+				}
+			}
+		}
+	}
+}
+
+function count(
+	database: DatabaseSync,
+	table: "provider_attempts" | "daily_rollups" | "benchmark_runs",
+): number {
+	const row = database
+		.prepare(`SELECT COUNT(*) AS count FROM ${table}`)
+		.get() as SqlRow;
 	return numberValue(row.count);
 }
 
@@ -774,13 +933,19 @@ function dayToTimestamp(day: string | undefined): number | undefined {
 	return Number.isFinite(value) ? value : undefined;
 }
 
-function earliestTimestamp(left: number | undefined, right: number | undefined): number | undefined {
+function earliestTimestamp(
+	left: number | undefined,
+	right: number | undefined,
+): number | undefined {
 	if (left === undefined) return right;
 	if (right === undefined) return left;
 	return Math.min(left, right);
 }
 
-function latestTimestamp(left: number | undefined, right: number | undefined): number | undefined {
+function latestTimestamp(
+	left: number | undefined,
+	right: number | undefined,
+): number | undefined {
 	if (left === undefined) return right;
 	if (right === undefined) return left;
 	return Math.max(left, right);
@@ -800,5 +965,8 @@ function databaseFootprint(path: string): number {
 
 function sameUtcDay(left: number, right: number): boolean {
 	if (left <= 0 || right <= 0) return false;
-	return new Date(left).toISOString().slice(0, 10) === new Date(right).toISOString().slice(0, 10);
+	return (
+		new Date(left).toISOString().slice(0, 10) ===
+		new Date(right).toISOString().slice(0, 10)
+	);
 }

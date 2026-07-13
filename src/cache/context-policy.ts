@@ -15,7 +15,9 @@ export const DYNAMIC_CONTEXT_MARKERS = [
 	"Token count:",
 ] as const;
 
-const VOLATILE_LINE_PREFIXES = DYNAMIC_CONTEXT_MARKERS.map((marker) => marker.toLowerCase());
+const VOLATILE_LINE_PREFIXES = DYNAMIC_CONTEXT_MARKERS.map((marker) =>
+	marker.toLowerCase(),
+);
 
 export function isZaiProvider(provider: string | undefined): boolean {
 	return provider !== undefined && ZAI_PROVIDERS.has(provider);
@@ -34,7 +36,10 @@ export function isPlatformProvider(provider: string): boolean {
 }
 
 /** Z.AI does not share implicit cache between Coding Plan and Platform endpoints. */
-export function endpointsShareCache(endpointA: string, endpointB: string): boolean {
+export function endpointsShareCache(
+	endpointA: string,
+	endpointB: string,
+): boolean {
 	return endpointA === endpointB;
 }
 
@@ -65,7 +70,10 @@ export function splitStableAndDynamicSystemPrompt(systemPrompt: string): {
 	};
 }
 
-export function appendDynamicContext(stablePrompt: string, dynamicContext: string): string {
+export function appendDynamicContext(
+	stablePrompt: string,
+	dynamicContext: string,
+): string {
 	const trimmed = dynamicContext.trim();
 	if (!trimmed) return stablePrompt;
 	return `${stablePrompt}${DYNAMIC_CONTEXT_MARKER}${trimmed}`;
@@ -87,7 +95,9 @@ export function analyzeSystemPromptSections(systemPrompt: string): {
 } {
 	const { stable, dynamic } = splitStableAndDynamicSystemPrompt(systemPrompt);
 	const stableLines = stable.split("\n");
-	let volatileLineCount = dynamic ? dynamic.split("\n").filter((line) => line.trim()).length : 0;
+	let volatileLineCount = dynamic
+		? dynamic.split("\n").filter((line) => line.trim()).length
+		: 0;
 	let inlineVolatile = 0;
 
 	for (const line of stableLines) {
@@ -98,7 +108,9 @@ export function analyzeSystemPromptSections(systemPrompt: string): {
 
 	volatileLineCount += inlineVolatile;
 	const stableLineCount = Math.max(0, stableLines.length - inlineVolatile);
-	const sections: SystemPromptSection[] = [{ kind: "stable", lineCount: stableLineCount }];
+	const sections: SystemPromptSection[] = [
+		{ kind: "stable", lineCount: stableLineCount },
+	];
 	if (volatileLineCount > 0) {
 		sections.push({ kind: "volatile", lineCount: volatileLineCount });
 	}

@@ -3,7 +3,12 @@ import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import type { ZaiMetricsConfig } from "../config.ts";
 import { MemoryStorage } from "./memory.ts";
 
-export { clearLocalProjectSecret, loadOrCreateLocalSecret, localSecretPath, projectIdForCwd } from "./project-id.ts";
+export {
+	clearLocalProjectSecret,
+	loadOrCreateLocalSecret,
+	localSecretPath,
+	projectIdForCwd,
+} from "./project-id.ts";
 
 import type { MetricsStorage } from "./types.ts";
 
@@ -18,8 +23,13 @@ export async function createMetricsStorage(
 	config: ZaiMetricsConfig,
 	onWarning?: (message: string) => void,
 ): Promise<MetricsStorage> {
-	if (config.mode === "off") return new MemoryStorage({ enabled: false, retentionDays: config.retentionDays });
-	if (config.mode === "memory") return new MemoryStorage({ retentionDays: config.retentionDays });
+	if (config.mode === "off")
+		return new MemoryStorage({
+			enabled: false,
+			retentionDays: config.retentionDays,
+		});
+	if (config.mode === "memory")
+		return new MemoryStorage({ retentionDays: config.retentionDays });
 
 	try {
 		const { NodeSqliteStorage } = await import("./sqlite.ts");
@@ -34,7 +44,9 @@ export async function createMetricsStorage(
 		return storage;
 	} catch (error) {
 		const detail = error instanceof Error ? error.message : String(error);
-		onWarning?.(`pi-zai could not open local SQLite metrics; using memory-only metrics (${detail}).`);
+		onWarning?.(
+			`pi-zai could not open local SQLite metrics; using memory-only metrics (${detail}).`,
+		);
 		return new MemoryStorage({ retentionDays: config.retentionDays });
 	}
 }

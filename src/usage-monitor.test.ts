@@ -9,11 +9,15 @@ import {
 
 describe("monitorBaseFromModelUrl", () => {
 	it("derives origin from coding baseUrl", () => {
-		expect(monitorBaseFromModelUrl("https://api.z.ai/api/coding/paas/v4")).toBe("https://api.z.ai");
+		expect(monitorBaseFromModelUrl("https://api.z.ai/api/coding/paas/v4")).toBe(
+			"https://api.z.ai",
+		);
 	});
 
 	it("derives origin from CN baseUrl", () => {
-		expect(monitorBaseFromModelUrl("https://open.bigmodel.cn/api/coding/paas/v4")).toBe("https://open.bigmodel.cn");
+		expect(
+			monitorBaseFromModelUrl("https://open.bigmodel.cn/api/coding/paas/v4"),
+		).toBe("https://open.bigmodel.cn");
 	});
 
 	it("returns undefined for invalid url", () => {
@@ -42,8 +46,12 @@ describe("formatResetCountdown", () => {
 
 	it("formats minutes, hours, days", () => {
 		expect(formatResetCountdown(now + 30 * 60_000, now)).toBe("reset in 30m");
-		expect(formatResetCountdown(now + (2 * 60 + 15) * 60_000, now)).toBe("reset in 2h 15m");
-		expect(formatResetCountdown(now + 3 * 24 * 60 * 60_000, now)).toBe("reset in 3d 0h");
+		expect(formatResetCountdown(now + (2 * 60 + 15) * 60_000, now)).toBe(
+			"reset in 2h 15m",
+		);
+		expect(formatResetCountdown(now + 3 * 24 * 60 * 60_000, now)).toBe(
+			"reset in 3d 0h",
+		);
 	});
 
 	it("handles past reset", () => {
@@ -56,8 +64,20 @@ describe("formatQuotaLimit", () => {
 	const data: QuotaLimitData = {
 		level: "max",
 		limits: [
-			{ type: "TOKENS_LIMIT", unit: 3, number: 5, percentage: 41, nextResetTime: now + 3 * 60 * 60_000 },
-			{ type: "TOKENS_LIMIT", unit: 6, number: 1, percentage: 16, nextResetTime: now + 5 * 24 * 60 * 60_000 },
+			{
+				type: "TOKENS_LIMIT",
+				unit: 3,
+				number: 5,
+				percentage: 41,
+				nextResetTime: now + 3 * 60 * 60_000,
+			},
+			{
+				type: "TOKENS_LIMIT",
+				unit: 6,
+				number: 1,
+				percentage: 16,
+				nextResetTime: now + 5 * 24 * 60 * 60_000,
+			},
 			{
 				type: "TIME_LIMIT",
 				unit: 5,

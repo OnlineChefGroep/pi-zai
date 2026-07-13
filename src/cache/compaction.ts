@@ -41,7 +41,9 @@ export function getCompactionHookOptions(): CompactionHookOptions {
 }
 
 /** Apply Z.AI compaction focus to Pi's mutable compact event payload. */
-export function applyZaiCompactionInstructions(event: { customInstructions?: string }): void {
+export function applyZaiCompactionInstructions(event: {
+	customInstructions?: string;
+}): void {
 	event.customInstructions = buildCompactionInstructions();
 }
 
@@ -57,12 +59,16 @@ export function applyZaiTreeSummaryInstructions(): {
 	};
 }
 
-export function stripHiddenReasoningFromMessages(messages: AgentMessage[]): AgentMessage[] {
+export function stripHiddenReasoningFromMessages(
+	messages: AgentMessage[],
+): AgentMessage[] {
 	return messages.map((message) => {
 		if (message.role !== "assistant" || !Array.isArray(message.content)) {
 			return message;
 		}
-		const filtered = message.content.filter((block) => block.type !== "thinking");
+		const filtered = message.content.filter(
+			(block) => block.type !== "thinking",
+		);
 		if (filtered.length === message.content.length) {
 			return message;
 		}
@@ -72,7 +78,9 @@ export function stripHiddenReasoningFromMessages(messages: AgentMessage[]): Agen
 
 export function prepareMessagesForCompaction(
 	messages: AgentMessage[],
-	options: Pick<CompactionHookOptions, "dropHiddenReasoning"> = { dropHiddenReasoning: true },
+	options: Pick<CompactionHookOptions, "dropHiddenReasoning"> = {
+		dropHiddenReasoning: true,
+	},
 ): AgentMessage[] {
 	if (!options.dropHiddenReasoning) {
 		return messages;
@@ -80,9 +88,12 @@ export function prepareMessagesForCompaction(
 	return stripHiddenReasoningFromMessages(messages);
 }
 
-export function compactionDropsHiddenReasoning(messages: AgentMessage[]): boolean {
+export function compactionDropsHiddenReasoning(
+	messages: AgentMessage[],
+): boolean {
 	for (const message of messages) {
-		if (message.role !== "assistant" || !Array.isArray(message.content)) continue;
+		if (message.role !== "assistant" || !Array.isArray(message.content))
+			continue;
 		if (message.content.some((block) => block.type === "thinking")) {
 			return false;
 		}
@@ -90,10 +101,16 @@ export function compactionDropsHiddenReasoning(messages: AgentMessage[]): boolea
 	return true;
 }
 
-export function compactionPreservesVisibleOutcomes(messages: AgentMessage[]): boolean {
+export function compactionPreservesVisibleOutcomes(
+	messages: AgentMessage[],
+): boolean {
 	for (const message of messages) {
 		if (message.role === "assistant" && Array.isArray(message.content)) {
-			if (message.content.some((block) => block.type === "text" || block.type === "toolCall")) {
+			if (
+				message.content.some(
+					(block) => block.type === "text" || block.type === "toolCall",
+				)
+			) {
 				return true;
 			}
 		}

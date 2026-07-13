@@ -1,4 +1,5 @@
-export const TELEMETRY_INGEST_URL = "https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate";
+export const TELEMETRY_INGEST_URL =
+	"https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate";
 
 export const FORBIDDEN_TELEMETRY_KEYS = [
 	"projectid",

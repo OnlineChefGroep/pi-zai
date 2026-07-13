@@ -4,7 +4,11 @@ import { formatPiCredentialSource } from "../credentials.ts";
 import { registerZaiBenchmarkCommand } from "./benchmark.ts";
 import { registerZaiCacheCommand } from "./cache.ts";
 import { registerZaiDataCommand } from "./data.ts";
-import { isPlatformProviderRegistered, resolveModelForEndpoint, type ZaiCommandDeps } from "./deps.ts";
+import {
+	isPlatformProviderRegistered,
+	resolveModelForEndpoint,
+	type ZaiCommandDeps,
+} from "./deps.ts";
 import { registerZaiDoctorCommand } from "./doctor.ts";
 import { registerZaiEndpointCommand } from "./endpoint.ts";
 import { registerZaiPrivacyCommand } from "./privacy.ts";
@@ -16,7 +20,10 @@ import { registerZaiUsageCommand } from "./usage.ts";
 export type { ZaiCommandDeps, ZaiEndpoint } from "./deps.ts";
 export { isPlatformProviderRegistered, resolveModelForEndpoint };
 
-export function registerZaiCommands(pi: ExtensionAPI, deps: ZaiCommandDeps): void {
+export function registerZaiCommands(
+	pi: ExtensionAPI,
+	deps: ZaiCommandDeps,
+): void {
 	registerZaiStatusCommand(pi, deps);
 	registerZaiEndpointCommand(pi, deps);
 	registerZaiCacheCommand(pi);
@@ -29,11 +36,14 @@ export function registerZaiCommands(pi: ExtensionAPI, deps: ZaiCommandDeps): voi
 	registerZaiTelemetryCommand(pi, deps);
 }
 
-export function createDefaultZaiCommandDeps(extensionVersion: string): ZaiCommandDeps {
+export function createDefaultZaiCommandDeps(
+	extensionVersion: string,
+): ZaiCommandDeps {
 	return {
 		extensionVersion,
 		getConfig: loadZaiConfig,
-		resolveCredentialSourceName: (provider, ctx) => formatPiCredentialSource(provider, ctx.modelRegistry),
+		resolveCredentialSourceName: (provider, ctx) =>
+			formatPiCredentialSource(provider, ctx.modelRegistry),
 		resolveModelForEndpoint,
 		isPlatformProviderRegistered,
 	};

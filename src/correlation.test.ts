@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fingerprintPayload, hashSessionId, QueryCorrelation } from "./correlation.ts";
+import {
+	fingerprintPayload,
+	hashSessionId,
+	QueryCorrelation,
+} from "./correlation.ts";
 
 describe("hashSessionId", () => {
 	it("returns a stable 16-char hash", () => {
@@ -10,8 +14,14 @@ describe("hashSessionId", () => {
 
 describe("fingerprintPayload", () => {
 	it("is stable regardless of object key order", () => {
-		const left = fingerprintPayload({ model: "glm-5.2", thinking: { type: "disabled", clear_thinking: true } });
-		const right = fingerprintPayload({ thinking: { clear_thinking: true, type: "disabled" }, model: "glm-5.2" });
+		const left = fingerprintPayload({
+			model: "glm-5.2",
+			thinking: { type: "disabled", clear_thinking: true },
+		});
+		const right = fingerprintPayload({
+			thinking: { clear_thinking: true, type: "disabled" },
+			model: "glm-5.2",
+		});
 		expect(left).toBe(right);
 	});
 });

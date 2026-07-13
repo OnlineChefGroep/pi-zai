@@ -1,4 +1,8 @@
-import type { BenchmarkRunManifest, BenchmarkRunRecord, BenchmarkRunReport } from "../benchmark/types.ts";
+import type {
+	BenchmarkRunManifest,
+	BenchmarkRunRecord,
+	BenchmarkRunReport,
+} from "../benchmark/types.ts";
 import { summarizeAnonymousDaily, utcDayFromMs } from "./anonymous-daily.ts";
 import {
 	type AnonymousDailySummary,
@@ -65,7 +69,13 @@ export class MemoryStorage implements MetricsStorage {
 	}
 
 	runCleanup(now: number, force = false): CleanupResult {
-		if (!this.enabled) return { attemptsDeleted: 0, rollupsDeleted: 0, benchmarksDeleted: 0, ran: false };
+		if (!this.enabled)
+			return {
+				attemptsDeleted: 0,
+				rollupsDeleted: 0,
+				benchmarksDeleted: 0,
+				ran: false,
+			};
 		const cutoff = now - this.retentionDays * 86_400_000;
 		const before = this.records.length;
 		this.records = this.records.filter((record) => record.occurredAt >= cutoff);
@@ -79,7 +89,9 @@ export class MemoryStorage implements MetricsStorage {
 
 	clearProject(projectId: string): void {
 		if (!this.enabled) return;
-		this.records = this.records.filter((record) => record.projectId !== projectId);
+		this.records = this.records.filter(
+			(record) => record.projectId !== projectId,
+		);
 	}
 
 	clearDetails(): void {
@@ -111,13 +123,22 @@ export class MemoryStorage implements MetricsStorage {
 	}
 
 	listBenchmarkRuns(): BenchmarkRunRecord[] {
-		return this.enabled ? this.benchmarkRuns.map((entry) => ({ ...entry, manifest: { ...entry.manifest } })) : [];
+		return this.enabled
+			? this.benchmarkRuns.map((entry) => ({
+					...entry,
+					manifest: { ...entry.manifest },
+				}))
+			: [];
 	}
 
 	getBenchmarkRun(runId: string): BenchmarkRunRecord | undefined {
 		const run = this.benchmarkRuns.find((entry) => entry.runId === runId);
 		return run
-			? { ...run, manifest: { ...run.manifest }, report: run.report ? { ...run.report } : undefined }
+			? {
+					...run,
+					manifest: { ...run.manifest },
+					report: run.report ? { ...run.report } : undefined,
+				}
 			: undefined;
 	}
 
@@ -137,21 +158,27 @@ export class MemoryStorage implements MetricsStorage {
 
 	getAnonymousDailySummary(day: string): AnonymousDailySummary | undefined {
 		if (!this.enabled) return undefined;
-		const records = this.records.filter((record) => utcDayFromMs(record.occurredAt) === day);
+		const records = this.records.filter(
+			(record) => utcDayFromMs(record.occurredAt) === day,
+		);
 		if (records.length === 0) return undefined;
 		return summarizeAnonymousDaily(records);
 	}
 
 	listTelemetryDays(): string[] {
 		if (!this.enabled) return [];
-		const days = new Set(this.records.map((record) => utcDayFromMs(record.occurredAt)));
+		const days = new Set(
+			this.records.map((record) => utcDayFromMs(record.occurredAt)),
+		);
 		return Array.from(days).sort();
 	}
 
 	listPendingTelemetryDays(now = Date.now()): string[] {
 		if (!this.enabled) return [];
 		const today = utcDayFromMs(now);
-		return this.listTelemetryDays().filter((day) => day < today && !this.isTelemetryDayUploaded(day));
+		return this.listTelemetryDays().filter(
+			(day) => day < today && !this.isTelemetryDayUploaded(day),
+		);
 	}
 
 	isTelemetryDayUploaded(day: string): boolean {
@@ -166,8 +193,13 @@ export class MemoryStorage implements MetricsStorage {
 
 	private filtered(filter: UsageFilter): ProviderAttemptRecord[] {
 		return this.records.filter((record) => {
-			if (filter.projectId !== undefined && record.projectId !== filter.projectId) return false;
-			if (filter.since !== undefined && record.occurredAt < filter.since) return false;
+			if (
+				filter.projectId !== undefined &&
+				record.projectId !== filter.projectId
+			)
+				return false;
+			if (filter.since !== undefined && record.occurredAt < filter.since)
+				return false;
 			return true;
 		});
 	}

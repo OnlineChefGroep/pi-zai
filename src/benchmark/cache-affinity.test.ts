@@ -41,7 +41,13 @@ describe("warmCacheHitRatio", () => {
 	it("skips errored warm turns", () => {
 		const turns = [
 			{ turn: 0, promptTokens: 1000, cachedTokens: 0, latencyMs: 1 },
-			{ turn: 1, promptTokens: 0, cachedTokens: 0, latencyMs: 1, error: "fail" },
+			{
+				turn: 1,
+				promptTokens: 0,
+				cachedTokens: 0,
+				latencyMs: 1,
+				error: "fail",
+			},
 			{ turn: 2, promptTokens: 1000, cachedTokens: 500, latencyMs: 1 },
 		];
 		expect(warmCacheHitRatio(turns)).toBeCloseTo(0.5, 3);
@@ -55,12 +61,21 @@ describe("summarizeMode and pickWinner", () => {
 		nonce: `n${trialNum}`,
 		turns: [
 			{ turn: 0, promptTokens: 1000, cachedTokens: 0, latencyMs: 100 },
-			{ turn: 1, promptTokens: 1000, cachedTokens: Math.round(1000 * ratio), latencyMs: 50 },
+			{
+				turn: 1,
+				promptTokens: 1000,
+				cachedTokens: Math.round(1000 * ratio),
+				latencyMs: 50,
+			},
 		],
 	});
 
 	it("computes median across trials", () => {
-		const summary = summarizeMode("stable", [trial(0.9, 1), trial(0.7, 2), trial(0.8, 3)], 2);
+		const summary = summarizeMode(
+			"stable",
+			[trial(0.9, 1), trial(0.7, 2), trial(0.8, 3)],
+			2,
+		);
 		expect(summary.warmCacheHitRatioMedian).toBeCloseTo(0.8, 3);
 	});
 

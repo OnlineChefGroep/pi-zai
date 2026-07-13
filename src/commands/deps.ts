@@ -28,6 +28,8 @@ export function resolveModelForEndpoint(
 	return ctx.modelRegistry.find(provider, modelId);
 }
 
-export function isPlatformProviderRegistered(ctx: ExtensionCommandContext): boolean {
+export function isPlatformProviderRegistered(
+	ctx: ExtensionCommandContext,
+): boolean {
 	return ctx.modelRegistry.find("zai-platform", "glm-5.2") !== undefined;
 }

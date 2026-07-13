@@ -48,20 +48,28 @@ function bucketCount(value: number, edges: number[]): string {
 export function buildAggregateTelemetryPreview(
 	config: ZaiConfig,
 	extensionVersion: string,
-	sessionState: Pick<ZaiSessionState, "provider" | "modelId" | "endpoint" | "promptStability">,
+	sessionState: Pick<
+		ZaiSessionState,
+		"provider" | "modelId" | "endpoint" | "promptStability"
+	>,
 	usage: UsageSummary,
 ): Record<string, unknown> {
 	const hitRatio = usage.cacheHitRatio;
 	return {
 		schema: 1,
-		status: isTelemetryUploadEnabled(config) ? "aggregate-ready" : "preview-only-not-sent",
+		status: isTelemetryUploadEnabled(config)
+			? "aggregate-ready"
+			: "preview-only-not-sent",
 		telemetryMode: config.telemetryMode,
 		extensionVersion,
 		model: sessionState.modelId ?? "unknown",
 		endpointKind: sessionState.endpoint,
 		promptMode: config.promptStabilityMode,
 		turnBucket: bucketCount(usage.attempts, [0, 5, 20, 50, 100]),
-		cacheRatioBucket: bucketCount(Math.round(hitRatio * 100), [0, 25, 50, 75, 90, 100]),
+		cacheRatioBucket: bucketCount(
+			Math.round(hitRatio * 100),
+			[0, 25, 50, 75, 90, 100],
+		),
 		retryRateBucket: bucketCount(usage.errors, [0, 2, 5, 10]),
 		systemChanged: sessionState.promptStability?.hasDynamicMarker ?? false,
 		toolsetChanged: false,
@@ -77,11 +85,21 @@ export function formatPrivacyPreview(
 	extensionVersion: string,
 	sessionState: Pick<
 		ZaiSessionState,
-		"projectId" | "sessionHash" | "provider" | "modelId" | "endpoint" | "promptStability"
+		| "projectId"
+		| "sessionHash"
+		| "provider"
+		| "modelId"
+		| "endpoint"
+		| "promptStability"
 	>,
 	usage: UsageSummary,
 ): string {
-	const aggregatePreview = buildAggregateTelemetryPreview(config, extensionVersion, sessionState, usage);
+	const aggregatePreview = buildAggregateTelemetryPreview(
+		config,
+		extensionVersion,
+		sessionState,
+		usage,
+	);
 	const sections: PrivacyPreviewSection[] = [
 		{
 			title: "Local SQLite allowlist",
@@ -113,7 +131,9 @@ export function formatPrivacyPreview(
 		},
 	];
 
-	return ["pi-zai privacy preview", "", ...sections.flatMap((section) => [section.title, ...section.lines, ""])].join(
-		"\n",
-	);
+	return [
+		"pi-zai privacy preview",
+		"",
+		...sections.flatMap((section) => [section.title, ...section.lines, ""]),
+	].join("\n");
 }

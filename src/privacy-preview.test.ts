@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { loadZaiConfig } from "./config.ts";
-import { buildAggregateTelemetryPreview, formatPrivacyPreview } from "./privacy-preview.ts";
+import {
+	buildAggregateTelemetryPreview,
+	formatPrivacyPreview,
+} from "./privacy-preview.ts";
 import { snapshotPromptStability } from "./prompt-stability.ts";
 import { EMPTY_USAGE_SUMMARY } from "./storage/types.ts";
 
@@ -14,7 +17,9 @@ describe("privacy preview", () => {
 				provider: "zai",
 				modelId: "glm-5.2",
 				endpoint: "coding",
-				promptStability: snapshotPromptStability("rules\n\n--- dynamic context ---\nctx"),
+				promptStability: snapshotPromptStability(
+					"rules\n\n--- dynamic context ---\nctx",
+				),
 			},
 			{ ...EMPTY_USAGE_SUMMARY, attempts: 12, cacheHitRatio: 0.8 },
 		);
@@ -48,7 +53,12 @@ describe("privacy preview", () => {
 		const preview = buildAggregateTelemetryPreview(
 			config,
 			"0.2.0",
-			{ provider: "zai", modelId: "glm-5.2", endpoint: "coding", promptStability: undefined },
+			{
+				provider: "zai",
+				modelId: "glm-5.2",
+				endpoint: "coding",
+				promptStability: undefined,
+			},
 			{ ...EMPTY_USAGE_SUMMARY, attempts: 100, errors: 10, cacheHitRatio: 1 },
 		);
 		expect(preview.cacheRatioBucket).toBe("90-100");

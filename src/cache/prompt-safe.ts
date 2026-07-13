@@ -6,7 +6,9 @@ import {
 } from "./context-policy.ts";
 
 /** Normalize dynamic suffix placement when the explicit marker is present. Idempotent. */
-export function applySafePromptNormalization(systemPrompt: string): string | undefined {
+export function applySafePromptNormalization(
+	systemPrompt: string,
+): string | undefined {
 	if (!systemPrompt.includes("--- dynamic context ---")) {
 		return undefined;
 	}
@@ -25,8 +27,13 @@ export function applySafePromptNormalization(systemPrompt: string): string | und
 	}
 
 	const stablePart = keptStable.join("\n").trimEnd();
-	const dynamicBody = [dynamic.trim(), movedVolatile.join("\n").trim()].filter((part) => part.length > 0).join("\n");
-	const normalized = dynamicBody.length > 0 ? appendDynamicContext(stablePart, dynamicBody) : stablePart;
+	const dynamicBody = [dynamic.trim(), movedVolatile.join("\n").trim()]
+		.filter((part) => part.length > 0)
+		.join("\n");
+	const normalized =
+		dynamicBody.length > 0
+			? appendDynamicContext(stablePart, dynamicBody)
+			: stablePart;
 
 	if (normalized === systemPrompt) {
 		return undefined;

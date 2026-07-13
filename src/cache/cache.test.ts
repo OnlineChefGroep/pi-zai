@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { applyZaiCompactionInstructions, applyZaiTreeSummaryInstructions } from "./compaction.ts";
+import {
+	applyZaiCompactionInstructions,
+	applyZaiTreeSummaryInstructions,
+} from "./compaction.ts";
 import {
 	analyzeSystemPromptSections,
 	isVolatileSystemPromptLine,
@@ -7,19 +10,27 @@ import {
 } from "./context-policy.ts";
 import { formatCacheDiagnostics } from "./diagnostics.ts";
 import type { SessionCacheStats } from "./metrics.ts";
-import { buildCacheSegmentKey, computeCacheRatios, detectSegmentChange } from "./metrics.ts";
+import {
+	buildCacheSegmentKey,
+	computeCacheRatios,
+	detectSegmentChange,
+} from "./metrics.ts";
 import { buildCacheRecommendations } from "./recommendations.ts";
 
 describe("metrics", () => {
 	it("guards division by zero for cache ratios", () => {
-		expect(computeCacheRatios({ input: 0, cacheRead: 0, cacheWrite: 0 })).toEqual({
+		expect(
+			computeCacheRatios({ input: 0, cacheRead: 0, cacheWrite: 0 }),
+		).toEqual({
 			hitRatio: 0,
 			missRatio: 0,
 		});
 	});
 
 	it("computes hit and miss ratios from Pi native usage", () => {
-		expect(computeCacheRatios({ input: 400, cacheRead: 800, cacheWrite: 0 })).toEqual({
+		expect(
+			computeCacheRatios({ input: 400, cacheRead: 800, cacheWrite: 0 }),
+		).toEqual({
 			hitRatio: 2 / 3,
 			missRatio: 1 / 3,
 		});
@@ -56,14 +67,17 @@ describe("context-policy", () => {
 	});
 
 	it("splits stable and dynamic sections", () => {
-		const prompt = "Stable rules\n\n--- dynamic context ---\nCurrent timestamp: now";
+		const prompt =
+			"Stable rules\n\n--- dynamic context ---\nCurrent timestamp: now";
 		const split = splitStableAndDynamicSystemPrompt(prompt);
 		expect(split.stable).toBe("Stable rules");
 		expect(split.dynamic).toContain("Current timestamp");
 	});
 
 	it("analyzes section counts only", () => {
-		const analysis = analyzeSystemPromptSections("Stable\nCurrent git status: x\n\n--- dynamic context ---\nfoo");
+		const analysis = analyzeSystemPromptSections(
+			"Stable\nCurrent git status: x\n\n--- dynamic context ---\nfoo",
+		);
 		expect(analysis.stableLineCount).toBe(1);
 		expect(analysis.volatileLineCount).toBeGreaterThan(0);
 		expect(analysis.hasDynamicMarker).toBe(true);
@@ -75,7 +89,9 @@ describe("compaction hooks", () => {
 		const event = { customInstructions: undefined as string | undefined };
 		applyZaiCompactionInstructions(event);
 		expect(event.customInstructions).toContain("Z.AI");
-		expect(event.customInstructions).toContain("Do not preserve hidden reasoning");
+		expect(event.customInstructions).toContain(
+			"Do not preserve hidden reasoning",
+		);
 	});
 
 	it("returns replaceable tree summary instructions", () => {
@@ -111,7 +127,9 @@ describe("recommendations", () => {
 		};
 		const tips = buildCacheRecommendations(stats);
 		expect(tips.some((tip) => tip.priority === "high")).toBe(true);
-		expect(tips.some((tip) => tip.message.includes("prefix change"))).toBe(true);
+		expect(tips.some((tip) => tip.message.includes("prefix change"))).toBe(
+			true,
+		);
 	});
 });
 
@@ -149,7 +167,10 @@ describe("diagnostics", () => {
 			},
 			segmentStartedAt: Date.now(),
 		};
-		const output = formatCacheDiagnostics({ stats, isZaiSession: true }, "status");
+		const output = formatCacheDiagnostics(
+			{ stats, isZaiSession: true },
+			"status",
+		);
 		expect(output).toContain("Stable-prefix fingerprint: abcd1234");
 		expect(output).toContain("Cached (cacheRead): 400");
 		expect(output).toContain("Session hit ratio: 80.0%");

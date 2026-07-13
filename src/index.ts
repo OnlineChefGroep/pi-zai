@@ -14,26 +14,34 @@ import {
 	isZaiModel,
 } from "./cache/index.ts";
 import { applySafePromptNormalization } from "./cache/prompt-safe.ts";
-import { createDefaultZaiCommandDeps, registerZaiCommands } from "./commands/index.ts";
+import {
+	createDefaultZaiCommandDeps,
+	registerZaiCommands,
+} from "./commands/index.ts";
 import { loadZaiConfig, type ZaiConfig } from "./config.ts";
 import { fingerprintPayload, hashSessionId } from "./correlation.ts";
 import { formatPiCredentialSource } from "./credentials.ts";
 import { isNativeZaiModel } from "./native-zai.ts";
 import { normalizeZaiThinkingPayload } from "./payload-normalizer.ts";
 import { snapshotPromptStability } from "./prompt-stability.ts";
-import { formatConnectionErrorHint, isConnectionErrorMessage } from "./resilience.ts";
+import {
+	formatConnectionErrorHint,
+	isConnectionErrorMessage,
+} from "./resilience.ts";
 import {
 	dispatchZaiHook,
 	getAttemptTracker,
 	getCacheMetricsStore,
 	getMetricsStorage,
 	getQueryCorrelation,
+	getToolExecutionTracker,
 	getTpsTracker,
 	inferEndpoint,
 	isZaiProvider,
 	newSessionAffinityId,
 	resetCacheMetrics,
 	resetCorrelationState,
+	resetToolMetrics,
 	resetTpsMetrics,
 	sessionState,
 	setMetricsStorage,
@@ -41,7 +49,10 @@ import {
 } from "./state.ts";
 import { createMetricsStorage, projectIdForCwd } from "./storage/index.ts";
 import { clearZaiStatus, updateZaiTpsStatus } from "./telemetry/status.ts";
-import { isTelemetryUploadEnabled, syncPendingTelemetry } from "./telemetry/sync.ts";
+import {
+	isTelemetryUploadEnabled,
+	syncPendingTelemetry,
+} from "./telemetry/sync.ts";
 
 export { loadZaiConfig, type ZaiConfig } from "./config.ts";
 export { formatPiCredentialSource } from "./credentials.ts";
@@ -70,7 +81,10 @@ export {
 
 const EXTENSION_VERSION = "0.3.0";
 
-function clampThinkingForModel(pi: ExtensionAPI, model: Model<any> | undefined): void {
+function clampThinkingForModel(
+	pi: ExtensionAPI,
+	model: Model<any> | undefined,
+): void {
 	if (!model?.reasoning) return;
 	const current = pi.getThinkingLevel();
 	const clamped = clampThinkingLevel(model, current) as ThinkingLevel;
@@ -98,12 +112,18 @@ function updateSessionFromModel(
 	sessionState.thinkingLevel = thinkingLevel;
 }
 
-function updateCacheSegment(model: Model<any>, systemPrompt: string, tools: { name: string }[]): void {
+function updateCacheSegment(
+	model: Model<any>,
+	systemPrompt: string,
+	tools: { name: string }[],
+): void {
 	const segment = buildCacheSegmentKey({
 		provider: model.provider,
 		baseUrl: model.baseUrl,
 		model: model.id,
-		systemFingerprint: fingerprintSystemPrompt(canonicalStableSystemPrefix(systemPrompt)),
+		systemFingerprint: fingerprintSystemPrompt(
+			canonicalStableSystemPrefix(systemPrompt),
+		),
 		toolsetFingerprint: fingerprintToolset(tools),
 	});
 	const store = getCacheMetricsStore();
@@ -115,7 +135,10 @@ function updateCacheSegment(model: Model<any>, systemPrompt: string, tools: { na
 	}
 }
 
-function classifyTransportError(message: string | undefined, httpStatus?: number): string | undefined {
+function classifyTransportError(
+	message: string | undefined,
+	httpStatus?: number,
+): string | undefined {
 	if (httpStatus === 429) return "http_429";
 	if (httpStatus !== undefined && httpStatus >= 500) return "http_5xx";
 	if (httpStatus !== undefined && httpStatus >= 400) return "http_4xx";
@@ -125,10 +148,13 @@ function classifyTransportError(message: string | undefined, httpStatus?: number
 	if (/tls|ssl/i.test(message)) return "tls";
 	if (/proxy/i.test(message)) return "proxy";
 	if (/dns|getaddrinfo|enotfound/i.test(message)) return "dns";
-	if (/connect|refused|reset|hang up|recv failure/i.test(message)) return "tcp_connect";
-	if (/stream|interrupted|terminated/i.test(message)) return "stream_interrupted";
+	if (/connect|refused|reset|hang up|recv failure/i.test(message))
+		return "tcp_connect";
+	if (/stream|interrupted|terminated/i.test(message))
+		return "stream_interrupted";
 	if (/context|length|overflow/i.test(message)) return "context_overflow";
-	if (/auth|401|403|unauthorized|forbidden/i.test(message)) return "authentication";
+	if (/auth|401|403|unauthorized|forbidden/i.test(message))
+		return "authentication";
 	if (isConnectionErrorMessage(message)) return "unknown_transport";
 	return undefined;
 }
@@ -144,7 +170,10 @@ function ensureAttemptTrackingForTurnEnd(): void {
 	});
 }
 
-async function ensureMetricsStorage(config: ZaiConfig, warn: (message: string) => void): Promise<void> {
+async function ensureMetricsStorage(
+	config: ZaiConfig,
+	warn: (message: string) => void,
+): Promise<void> {
 	setMetricsStorage(await createMetricsStorage(config.metrics, warn));
 }
 
@@ -160,6 +189,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		if (event.reason !== "reload") {
 			resetCacheMetrics();
 			resetTpsMetrics();
+			resetToolMetrics();
 			resetCorrelationState();
 			sessionState.sessionAffinityId = newSessionAffinityId();
 			sessionState.activeBenchmarkRunId = undefined;
@@ -167,7 +197,9 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 
 		sessionState.projectId = projectIdForCwd(ctx.cwd);
 		sessionState.sessionHash = hashSessionId(ctx.sessionManager.getSessionId());
-		await ensureMetricsStorage(config, (message) => ctx.ui.notify(message, "warning"));
+		await ensureMetricsStorage(config, (message) =>
+			ctx.ui.notify(message, "warning"),
+		);
 
 		const storage = getMetricsStorage();
 		if (storage && shouldRunDailyMetricsCleanup()) {
@@ -185,7 +217,10 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		updateSessionFromModel(ctx.model, pi.getThinkingLevel());
 		if (ctx.model) clampThinkingForModel(pi, ctx.model);
 		if (ctx.model && isZaiProvider(ctx.model.provider)) {
-			sessionState.credentialSource = formatPiCredentialSource(ctx.model.provider, ctx.modelRegistry);
+			sessionState.credentialSource = formatPiCredentialSource(
+				ctx.model.provider,
+				ctx.modelRegistry,
+			);
 		} else {
 			sessionState.credentialSource = undefined;
 		}
@@ -196,6 +231,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	pi.on("session_shutdown", async (_event, ctx) => {
 		resetCacheMetrics();
 		resetTpsMetrics();
+		resetToolMetrics();
 		sessionState.activeBenchmarkRunId = undefined;
 		setMetricsStorage(undefined);
 		clearZaiStatus(ctx);
@@ -205,7 +241,10 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		clampThinkingForModel(pi, event.model);
 		updateSessionFromModel(event.model, pi.getThinkingLevel());
 		if (isZaiProvider(event.model.provider)) {
-			sessionState.credentialSource = formatPiCredentialSource(event.model.provider, ctx.modelRegistry);
+			sessionState.credentialSource = formatPiCredentialSource(
+				event.model.provider,
+				ctx.modelRegistry,
+			);
 		} else {
 			clearZaiStatus(ctx);
 		}
@@ -213,14 +252,22 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("message_start", async (event, ctx) => {
-		if (event.message.role !== "assistant" || !ctx.model || !isZaiModel(ctx.model)) {
+		if (
+			event.message.role !== "assistant" ||
+			!ctx.model ||
+			!isZaiModel(ctx.model)
+		) {
 			return;
 		}
 		getTpsTracker().beginAssistantMessage();
 	});
 
 	pi.on("message_update", async (event, ctx) => {
-		if (event.message.role !== "assistant" || !ctx.model || !isZaiModel(ctx.model)) {
+		if (
+			event.message.role !== "assistant" ||
+			!ctx.model ||
+			!isZaiModel(ctx.model)
+		) {
 			return;
 		}
 		getTpsTracker().markFirstToken();
@@ -228,10 +275,17 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("message_end", async (event, ctx) => {
-		if (event.message.role !== "assistant" || !ctx.model || !isZaiModel(ctx.model)) {
+		if (
+			event.message.role !== "assistant" ||
+			!ctx.model ||
+			!isZaiModel(ctx.model)
+		) {
 			return;
 		}
-		const sample = getTpsTracker().completeAssistantMessage(event.message.usage, Date.now());
+		const sample = getTpsTracker().completeAssistantMessage(
+			event.message.usage,
+			Date.now(),
+		);
 		updateZaiTpsStatus(ctx, config, sample, getTpsTracker().get());
 	});
 
@@ -239,7 +293,16 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		if (!ctx.model || !isZaiModel(ctx.model)) return;
 		const queryId = getQueryCorrelation().beginQuery();
 		getAttemptTracker().prepareQueryAttempt(queryId);
-		const toolNames = pi.getActiveTools().map((name) => ({ name }));
+		getToolExecutionTracker().beginTurn();
+		const activeToolNames = new Set(pi.getActiveTools());
+		const toolsForFingerprint = pi
+			.getAllTools()
+			.filter((tool) => activeToolNames.has(tool.name))
+			.map((tool) => ({
+				name: tool.name,
+				description: tool.description,
+				parameters: tool.parameters,
+			}));
 		let systemPromptForMetrics = event.systemPrompt;
 		if (config.promptStabilityMode === "safe") {
 			const normalized = applySafePromptNormalization(event.systemPrompt);
@@ -247,25 +310,38 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 				systemPromptForMetrics = normalized;
 			}
 		}
-		updateCacheSegment(ctx.model, systemPromptForMetrics, toolNames);
-		sessionState.promptStability = snapshotPromptStability(systemPromptForMetrics);
+		updateCacheSegment(ctx.model, systemPromptForMetrics, toolsForFingerprint);
+		sessionState.promptStability = snapshotPromptStability(
+			systemPromptForMetrics,
+		);
 
-		if (config.promptStabilityMode === "safe" && systemPromptForMetrics !== event.systemPrompt) {
+		if (
+			config.promptStabilityMode === "safe" &&
+			systemPromptForMetrics !== event.systemPrompt
+		) {
 			return { systemPrompt: systemPromptForMetrics };
 		}
 	});
 
 	pi.on("turn_end", async (event, ctx) => {
 		sessionState.thinkingLevel = pi.getThinkingLevel();
-		if (ctx.model && isZaiModel(ctx.model) && event.message.role === "assistant" && event.message.usage) {
+		if (
+			ctx.model &&
+			isZaiModel(ctx.model) &&
+			event.message.role === "assistant" &&
+			event.message.usage
+		) {
 			getCacheMetricsStore().record(ctx.model, event.message.usage);
 
 			const assistant = event.message as AssistantMessage;
 			const segment = getCacheMetricsStore().get()?.segment;
 			ensureAttemptTrackingForTurnEnd();
+			const turnTools = getToolExecutionTracker().getTurnStats();
 			const record = getAttemptTracker().buildRecord({
 				projectId: sessionState.projectId ?? projectIdForCwd(ctx.cwd),
-				sessionHash: sessionState.sessionHash ?? hashSessionId(ctx.sessionManager.getSessionId()),
+				sessionHash:
+					sessionState.sessionHash ??
+					hashSessionId(ctx.sessionManager.getSessionId()),
 				provider: ctx.model.provider,
 				model: ctx.model.id,
 				endpointKind: sessionState.endpoint,
@@ -275,7 +351,12 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 				toolsetFingerprint: segment?.toolsetFingerprint,
 				usage: event.message.usage,
 				errorCategory:
-					assistant.stopReason === "error" ? classifyTransportError(assistant.errorMessage, undefined) : undefined,
+					assistant.stopReason === "error"
+						? classifyTransportError(assistant.errorMessage, undefined)
+						: undefined,
+				toolCallsInTurn: turnTools.executions,
+				toolErrorsInTurn: turnTools.errors,
+				toolDurationMsTotal: turnTools.totalMs,
 			});
 			if (record) {
 				getMetricsStorage()?.recordAttempt(record);
@@ -302,14 +383,37 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		if (!ctx.model || !isZaiModel(ctx.model)) return;
 		for (let i = ctx.sessionManager.getBranch().length - 1; i >= 0; i -= 1) {
 			const entry = ctx.sessionManager.getBranch()[i];
-			if (entry.type !== "message" || entry.message.role !== "assistant") continue;
+			if (entry.type !== "message" || entry.message.role !== "assistant")
+				continue;
 			const assistant = entry.message as AssistantMessage;
-			if (assistant.stopReason !== "error" || !isConnectionErrorMessage(assistant.errorMessage)) {
+			if (
+				assistant.stopReason !== "error" ||
+				!isConnectionErrorMessage(assistant.errorMessage)
+			) {
 				return;
 			}
 			ctx.ui.notify(formatConnectionErrorHint(ctx.model), "warning");
 			return;
 		}
+	});
+
+	pi.on("tool_execution_start", async (event, ctx) => {
+		if (!ctx.model || !isZaiModel(ctx.model)) return;
+		getAttemptTracker().markFirstToolDelta();
+		getToolExecutionTracker().begin(
+			event.toolCallId,
+			event.toolName,
+			getQueryCorrelation().currentQueryIdOrUndefined(),
+		);
+	});
+
+	pi.on("tool_execution_end", async (event, ctx) => {
+		if (!ctx.model || !isZaiModel(ctx.model)) return;
+		getToolExecutionTracker().complete(
+			event.toolCallId,
+			event.toolName,
+			event.isError,
+		);
 	});
 
 	pi.on("before_provider_request", async (event, ctx) => {
@@ -341,7 +445,9 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		getAttemptTracker().markHeadersReceived();
 		getAttemptTracker().markResponse(
 			event.status,
-			event.status >= 400 ? classifyTransportError(undefined, event.status) : undefined,
+			event.status >= 400
+				? classifyTransportError(undefined, event.status)
+				: undefined,
 		);
 	});
 

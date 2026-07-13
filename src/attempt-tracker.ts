@@ -9,6 +9,7 @@ type InFlightAttempt = {
 	requestStartedAt: number;
 	headersReceivedAt: number | undefined;
 	firstDeltaAt: number | undefined;
+	firstToolDeltaAt: number | undefined;
 	httpStatus: number | undefined;
 	errorCategory: string | undefined;
 };
@@ -29,12 +30,18 @@ export class AttemptTracker {
 			requestStartedAt: now,
 			headersReceivedAt: undefined,
 			firstDeltaAt: undefined,
+			firstToolDeltaAt: undefined,
 			httpStatus: undefined,
 			errorCategory: undefined,
 		};
 	}
 
-	armProviderAttempt(input: { requestId: string; attempt: number; payloadFingerprint: string; now?: number }): void {
+	armProviderAttempt(input: {
+		requestId: string;
+		attempt: number;
+		payloadFingerprint: string;
+		now?: number;
+	}): void {
 		if (!this.inFlight) {
 			this.beginAttempt({
 				queryId: input.requestId.replace(/-a\d+$/, ""),
@@ -66,6 +73,7 @@ export class AttemptTracker {
 			requestStartedAt: input.now ?? Date.now(),
 			headersReceivedAt: undefined,
 			firstDeltaAt: undefined,
+			firstToolDeltaAt: undefined,
 			httpStatus: undefined,
 			errorCategory: undefined,
 		};
@@ -79,6 +87,11 @@ export class AttemptTracker {
 	markFirstDelta(now = Date.now()): void {
 		if (!this.inFlight || this.inFlight.firstDeltaAt !== undefined) return;
 		this.inFlight.firstDeltaAt = now;
+	}
+
+	markFirstToolDelta(now = Date.now()): void {
+		if (!this.inFlight || this.inFlight.firstToolDeltaAt !== undefined) return;
+		this.inFlight.firstToolDeltaAt = now;
 	}
 
 	markResponse(status: number, errorCategory?: string): void {
@@ -105,6 +118,9 @@ export class AttemptTracker {
 		toolsetFingerprint?: string;
 		usage?: Usage;
 		errorCategory?: string;
+		toolCallsInTurn?: number;
+		toolErrorsInTurn?: number;
+		toolDurationMsTotal?: number;
 	}): ProviderAttemptRecord | undefined {
 		if (!this.inFlight) return undefined;
 
@@ -116,6 +132,10 @@ export class AttemptTracker {
 		const requestToFirstDeltaMs =
 			this.inFlight.firstDeltaAt !== undefined
 				? this.inFlight.firstDeltaAt - this.inFlight.requestStartedAt
+				: undefined;
+		const requestToFirstToolDeltaMs =
+			this.inFlight.firstToolDeltaAt !== undefined
+				? this.inFlight.firstToolDeltaAt - this.inFlight.requestStartedAt
 				: undefined;
 		const totalMs = endedAt - this.inFlight.requestStartedAt;
 
@@ -140,11 +160,17 @@ export class AttemptTracker {
 			outputTokens: input.usage?.output,
 			requestToHeadersMs,
 			requestToFirstDeltaMs,
+			requestToFirstToolDeltaMs,
 			totalMs,
 			httpStatus: this.inFlight.httpStatus,
 			errorCategory: input.errorCategory ?? this.inFlight.errorCategory,
 			estimatedApiCostMicrousd:
-				input.usage !== undefined ? Math.round(Math.max(0, input.usage.cost.total) * 1_000_000) : undefined,
+				input.usage !== undefined
+					? Math.round(Math.max(0, input.usage.cost.total) * 1_000_000)
+					: undefined,
+			toolCallsInTurn: input.toolCallsInTurn,
+			toolErrorsInTurn: input.toolErrorsInTurn,
+			toolDurationMsTotal: input.toolDurationMsTotal,
 		};
 
 		this.inFlight = undefined;

@@ -1,4 +1,7 @@
-import type { AggregateTelemetryPayload, TelemetryUploadResult } from "./types.ts";
+import type {
+	AggregateTelemetryPayload,
+	TelemetryUploadResult,
+} from "./types.ts";
 import { validateAggregatePayload } from "./validate.ts";
 
 export async function uploadAggregatePayload(

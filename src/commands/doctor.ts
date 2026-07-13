@@ -1,7 +1,13 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { Model } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
-import { buildCompactionInstructions, ZAI_COMPACTION_SECTIONS } from "../cache/compaction.ts";
+import type {
+	ExtensionAPI,
+	ExtensionCommandContext,
+} from "@earendil-works/pi-coding-agent";
+import {
+	buildCompactionInstructions,
+	ZAI_COMPACTION_SECTIONS,
+} from "../cache/compaction.ts";
 import { canonicalStableSystemPrefix } from "../cache/context-policy.ts";
 import { fingerprintToolset } from "../cache/fingerprint.ts";
 import {
@@ -13,7 +19,12 @@ import {
 } from "../resilience.ts";
 import { inferEndpoint, sessionState } from "../state.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
-import { describeThinkingPayload, formatCredentialSource, getZaiCompat, requireZaiModel } from "./helpers.ts";
+import {
+	describeThinkingPayload,
+	formatCredentialSource,
+	getZaiCompat,
+	requireZaiModel,
+} from "./helpers.ts";
 
 type CheckStatus = "pass" | "fail" | "skip" | "warn";
 
@@ -40,7 +51,10 @@ function statusIcon(status: CheckStatus): string {
 
 /** GLM-5.2 is the only Z.AI model exposing reasoning_effort, so it is the only one with a thinkingLevelMap. */
 function isReasoningEffortModel(model: Model<any> | undefined): boolean {
-	return (model?.compat as { supportsReasoningEffort?: boolean } | undefined)?.supportsReasoningEffort === true;
+	return (
+		(model?.compat as { supportsReasoningEffort?: boolean } | undefined)
+			?.supportsReasoningEffort === true
+	);
 }
 
 function glm52ThinkingMapOk(model: Model<any> | undefined): boolean {
@@ -62,7 +76,10 @@ function hasPlatformPricing(model: Model<any> | undefined): boolean {
 	return input > 0 || output > 0;
 }
 
-async function runNetworkProbe(ctx: ExtensionCommandContext, model: Model<any>): Promise<DoctorCheck> {
+async function runNetworkProbe(
+	ctx: ExtensionCommandContext,
+	model: Model<any>,
+): Promise<DoctorCheck> {
 	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
 	if (!auth.ok || !auth.apiKey) {
 		return {
@@ -107,7 +124,10 @@ async function runNetworkProbe(ctx: ExtensionCommandContext, model: Model<any>):
 	}
 }
 
-async function runConnectionStabilityProbe(ctx: ExtensionCommandContext, model: Model<any>): Promise<DoctorCheck> {
+async function runConnectionStabilityProbe(
+	ctx: ExtensionCommandContext,
+	model: Model<any>,
+): Promise<DoctorCheck> {
 	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
 	if (!auth.ok || !auth.apiKey) {
 		return {
@@ -143,7 +163,10 @@ async function runConnectionStabilityProbe(ctx: ExtensionCommandContext, model: 
 	};
 }
 
-export function registerZaiDoctorCommand(pi: ExtensionAPI, deps: ZaiCommandDeps): void {
+export function registerZaiDoctorCommand(
+	pi: ExtensionAPI,
+	deps: ZaiCommandDeps,
+): void {
 	pi.registerCommand("zai-doctor", {
 		description: "Z.AI integration checks with optional live network probes",
 		handler: async (_args, ctx) => {
@@ -162,18 +185,24 @@ export function registerZaiDoctorCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 			checks.push({
 				name: "Pi compatibility",
 				status: "pass",
-				detail: "Requires @earendil-works/pi-coding-agent >= 0.80.0 with native Z.AI transport.",
+				detail:
+					"Requires @earendil-works/pi-coding-agent >= 0.80.0 with native Z.AI transport.",
 			});
 
 			checks.push({
 				name: "Built-in Z.AI provider",
 				status: codingModel ? "pass" : "fail",
-				detail: codingModel ? "zai/glm-5.2 present" : "zai/glm-5.2 missing from registry",
+				detail: codingModel
+					? "zai/glm-5.2 present"
+					: "zai/glm-5.2 missing from registry",
 			});
 
 			checks.push({
 				name: "Platform provider (optional)",
-				status: deps.isPlatformProviderRegistered(ctx) && platformModel ? "pass" : "skip",
+				status:
+					deps.isPlatformProviderRegistered(ctx) && platformModel
+						? "pass"
+						: "skip",
 				detail: platformModel
 					? "zai-platform/glm-5.2 present in models.json"
 					: "Not registered by pi-zai; add zai-platform manually via models.json if needed",
@@ -183,7 +212,8 @@ export function registerZaiDoctorCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 			const credentialName =
 				(await deps.resolveCredentialSourceName(credentialProvider, ctx)) ??
 				formatCredentialSource(credentialProvider, ctx);
-			const credentialConfigured = ctx.modelRegistry.getProviderAuthStatus(credentialProvider).configured;
+			const credentialConfigured =
+				ctx.modelRegistry.getProviderAuthStatus(credentialProvider).configured;
 			checks.push({
 				name: "Credential availability",
 				status: credentialConfigured ? "pass" : "warn",
@@ -245,7 +275,8 @@ export function registerZaiDoctorCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 			checks.push({
 				name: "Streamed usage + cached tokens",
 				status: "pass",
-				detail: "Handled by upstream pi-ai openai-completions Z.AI parser (cacheRead from cached_tokens).",
+				detail:
+					"Handled by upstream pi-ai openai-completions Z.AI parser (cacheRead from cached_tokens).",
 			});
 
 			checks.push({
@@ -256,10 +287,15 @@ export function registerZaiDoctorCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 					: "Platform glm-5.2 pricing metadata missing or zero",
 			});
 
-			const stableSample = canonicalStableSystemPrefix("Project rules\nCurrent git status: dirty");
+			const stableSample = canonicalStableSystemPrefix(
+				"Project rules\nCurrent git status: dirty",
+			);
 			checks.push({
 				name: "Stable system prefix",
-				status: stableSample.length > 0 && !stableSample.includes("git status") ? "pass" : "fail",
+				status:
+					stableSample.length > 0 && !stableSample.includes("git status")
+						? "pass"
+						: "fail",
 				detail: "Volatile git/timestamp lines excluded from canonical prefix",
 			});
 
@@ -267,7 +303,10 @@ export function registerZaiDoctorCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 				{
 					name: "read",
 					description: "Read files",
-					parameters: { type: "object", properties: { path: { type: "string" } } },
+					parameters: {
+						type: "object",
+						properties: { path: { type: "string" } },
+					},
 				},
 			]);
 			checks.push({
@@ -277,7 +316,9 @@ export function registerZaiDoctorCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 			});
 
 			const compaction = buildCompactionInstructions();
-			const compactionOk = ZAI_COMPACTION_SECTIONS.every((section) => compaction.includes(section));
+			const compactionOk = ZAI_COMPACTION_SECTIONS.every((section) =>
+				compaction.includes(section),
+			);
 			checks.push({
 				name: "Compaction policy",
 				status: compactionOk ? "pass" : "fail",
@@ -330,7 +371,10 @@ export function registerZaiDoctorCommand(pi: ExtensionAPI, deps: ZaiCommandDeps)
 			const lines = [
 				"Z.AI doctor",
 				"",
-				...checks.map((check) => `[${statusIcon(check.status)}] ${check.name}: ${check.detail}`),
+				...checks.map(
+					(check) =>
+						`[${statusIcon(check.status)}] ${check.name}: ${check.detail}`,
+				),
 			];
 			const hasFail = checks.some((check) => check.status === "fail");
 			ctx.ui.notify(lines.join("\n"), hasFail ? "error" : "info");

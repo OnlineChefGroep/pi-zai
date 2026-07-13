@@ -15,18 +15,33 @@ import {
 } from "../telemetry/sync.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
 
-const ACTIONS = ["status", "preview", "enable", "disable", "upload", "sync"] as const;
+const ACTIONS = [
+	"status",
+	"preview",
+	"enable",
+	"disable",
+	"upload",
+	"sync",
+] as const;
 
 function utcYesterday(now = Date.now()): string {
 	return new Date(now - 86_400_000).toISOString().slice(0, 10);
 }
 
-export function registerZaiTelemetryCommand(pi: ExtensionAPI, deps: ZaiCommandDeps): void {
+export function registerZaiTelemetryCommand(
+	pi: ExtensionAPI,
+	deps: ZaiCommandDeps,
+): void {
 	pi.registerCommand("zai-telemetry", {
-		description: "Opt-in anonymous daily aggregate telemetry (Z.AI usage buckets only)",
+		description:
+			"Opt-in anonymous daily aggregate telemetry (Z.AI usage buckets only)",
 		getArgumentCompletions: (prefix) => {
-			const matches = ACTIONS.filter((value) => value.startsWith(prefix.trim().toLowerCase()));
-			return matches.length > 0 ? matches.map((value) => ({ value, label: value })) : null;
+			const matches = ACTIONS.filter((value) =>
+				value.startsWith(prefix.trim().toLowerCase()),
+			);
+			return matches.length > 0
+				? matches.map((value) => ({ value, label: value }))
+				: null;
 		},
 		handler: async (args, ctx) => {
 			const tokens = args
@@ -49,7 +64,9 @@ export function registerZaiTelemetryCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 					];
 					if (storage) {
 						const pending = storage.listPendingTelemetryDays();
-						lines.push(`  pending days: ${pending.length > 0 ? pending.join(", ") : "none"}`);
+						lines.push(
+							`  pending days: ${pending.length > 0 ? pending.join(", ") : "none"}`,
+						);
 					}
 					lines.push(
 						"",
@@ -61,7 +78,10 @@ export function registerZaiTelemetryCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 				}
 				case "preview": {
 					if (!storage) {
-						ctx.ui.notify("Local metrics storage is not initialized.", "warning");
+						ctx.ui.notify(
+							"Local metrics storage is not initialized.",
+							"warning",
+						);
 						return;
 					}
 					const day = tokens[1] ?? utcYesterday();
@@ -93,7 +113,10 @@ export function registerZaiTelemetryCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 						return;
 					}
 					if (hasTelemetryConsent()) {
-						ctx.ui.notify("Anonymous aggregate telemetry is already enabled.", "info");
+						ctx.ui.notify(
+							"Anonymous aggregate telemetry is already enabled.",
+							"info",
+						);
 						return;
 					}
 					const confirmed = await ctx.ui.confirm(
@@ -110,11 +133,17 @@ export function registerZaiTelemetryCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 				}
 				case "disable":
 					clearTelemetryConsent();
-					ctx.ui.notify("Telemetry consent removed. Uploads stopped (settings mode unchanged).", "info");
+					ctx.ui.notify(
+						"Telemetry consent removed. Uploads stopped (settings mode unchanged).",
+						"info",
+					);
 					return;
 				case "upload": {
 					if (!storage) {
-						ctx.ui.notify("Local metrics storage is not initialized.", "warning");
+						ctx.ui.notify(
+							"Local metrics storage is not initialized.",
+							"warning",
+						);
 						return;
 					}
 					const day = tokens[1] ?? utcYesterday();
@@ -131,12 +160,18 @@ export function registerZaiTelemetryCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 						);
 						return;
 					}
-					ctx.ui.notify(`Upload failed for ${day}: ${result.error ?? "unknown error"}`, "warning");
+					ctx.ui.notify(
+						`Upload failed for ${day}: ${result.error ?? "unknown error"}`,
+						"warning",
+					);
 					return;
 				}
 				case "sync": {
 					if (!storage) {
-						ctx.ui.notify("Local metrics storage is not initialized.", "warning");
+						ctx.ui.notify(
+							"Local metrics storage is not initialized.",
+							"warning",
+						);
 						return;
 					}
 					const result = await syncPendingTelemetry({
@@ -150,7 +185,9 @@ export function registerZaiTelemetryCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 					}
 					const lines = ["Telemetry sync complete."];
 					if (result.uploaded.length > 0) {
-						lines.push(`  uploaded: ${result.uploaded.map((entry) => entry.day).join(", ")}`);
+						lines.push(
+							`  uploaded: ${result.uploaded.map((entry) => entry.day).join(", ")}`,
+						);
 					}
 					if (result.skipped.length > 0) {
 						lines.push(`  skipped: ${result.skipped.join("; ")}`);
@@ -159,7 +196,10 @@ export function registerZaiTelemetryCommand(pi: ExtensionAPI, deps: ZaiCommandDe
 					return;
 				}
 				default:
-					ctx.ui.notify(`Unknown action "${action}". Try: ${ACTIONS.join(", ")}`, "warning");
+					ctx.ui.notify(
+						`Unknown action "${action}". Try: ${ACTIONS.join(", ")}`,
+						"warning",
+					);
 			}
 		},
 	});

@@ -1,7 +1,10 @@
 import type { ModelRegistry } from "@earendil-works/pi-coding-agent";
 
 /** Pi-native credential label for status/doctor output; never returns secret values. */
-export function formatPiCredentialSource(provider: string, modelRegistry: ModelRegistry | undefined): string {
+export function formatPiCredentialSource(
+	provider: string,
+	modelRegistry: ModelRegistry | undefined,
+): string {
 	const auth = modelRegistry?.getProviderAuthStatus(provider);
 	if (!auth?.configured) return "not configured";
 	if (auth.source === "environment" && auth.label) return auth.label;

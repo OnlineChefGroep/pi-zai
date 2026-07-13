@@ -12,8 +12,11 @@ Status dashboard:
 - tool streaming flag
 - credential source name (never the key value)
 - last usage line
+- throughput (tok/s)
+- tool executions this session (counts/durations by tool name — never args/results)
 - cache hit ratios and session cost
 - prompt stability (stable/volatile line counts, fingerprint)
+- metrics / telemetry / affinity / prompt mode
 
 ## `/zai-endpoint coding|platform`
 
@@ -77,7 +80,7 @@ Local Z.AI attempt metrics (SQLite by default). See [Security](security.md) for 
 
 ## `/zai-transport`
 
-Local transport summary for the current project: attempt count, error count, average latency (headers, first delta, total), and error categories. No raw error bodies.
+Local transport summary for the current project: attempt count, error count, average latency (headers, first delta, first tool, total), and error categories. No raw error bodies.
 
 ## `/zai-privacy preview`
 

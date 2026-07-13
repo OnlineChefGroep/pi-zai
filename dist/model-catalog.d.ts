@@ -6,7 +6,7 @@ export declare const GLM52_THINKING_LEVEL_MAP: {
     readonly low: null;
     readonly medium: null;
     readonly high: "high";
-    readonly xhigh: null;
+    readonly xhigh: "max";
     readonly max: "max";
 };
 export type PlatformModelCatalogOptions = {

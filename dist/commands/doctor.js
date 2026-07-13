@@ -29,7 +29,7 @@ function glm52ThinkingMapOk(model) {
         map.low === null &&
         map.medium === null &&
         map.high === "high" &&
-        map.xhigh === null &&
+        map.xhigh === "max" &&
         map.max === "max");
 }
 function hasPlatformPricing(model) {

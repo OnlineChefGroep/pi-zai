@@ -5,7 +5,7 @@ export const GLM52_THINKING_LEVEL_MAP = {
     low: null,
     medium: null,
     high: "high",
-    xhigh: null,
+    xhigh: "max",
     max: "max",
 };
 const BASE_ZAI_COMPAT = {

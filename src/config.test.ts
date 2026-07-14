@@ -44,16 +44,15 @@ describe("loadZaiConfig", () => {
 	});
 
 	it("trims and deduplicates tool names without prototype pollution", () => {
+		const groups = JSON.parse(
+			'{" shell ":[" bash ","bash",""],"":["write"],"__proto__":["edit"]}',
+		) as Record<string, string[]>;
 		const cwd = writeConfig({
 			zai: {
 				adaptiveTools: {
 					mode: "manual",
 					alwaysActive: [" read ", "read", ""],
-					groups: {
-						" shell ": [" bash ", "bash", ""],
-						"": ["write"],
-						__proto__: ["edit"],
-					},
+					groups,
 				},
 			},
 		});

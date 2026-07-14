@@ -174,6 +174,29 @@ describe("adaptive loader integration", () => {
 		expect(pi.getActiveTools()).not.toContain("zai_load_tools");
 	});
 
+	it("fails open when the tool registry is unavailable during shutdown", async () => {
+		const cwd = tempCwd();
+		const pi = createMockExtensionApi({ cwd, model: createZaiModel() });
+		piZaiExtension(pi);
+		const ctx = createExtensionContext(cwd);
+		await pi.trigger(
+			"session_start",
+			{ type: "session_start", reason: "startup" },
+			ctx,
+		);
+
+		(pi as unknown as { getActiveTools: () => string[] }).getActiveTools = () => {
+			throw new Error("tool registry unavailable");
+		};
+		await expect(
+			pi.trigger(
+				"session_shutdown",
+				{ type: "session_shutdown", reason: "quit" },
+				ctx,
+			),
+		).resolves.toHaveLength(1);
+	});
+
 	it("records useful observations without changing tools", async () => {
 		const cwd = tempCwd("observe");
 		const pi = createMockExtensionApi({ cwd, model: createZaiModel() });

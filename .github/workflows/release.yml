@@ -28,7 +28,6 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22.x'
-          registry-url: https://registry.npmjs.org
       - name: Use npm with trusted-publishing support
         run: npm install --global npm@11.5.1
       - name: Read package identity
@@ -65,8 +64,29 @@ jobs:
       - name: Publish package
         if: steps.registry.outputs.published != 'true'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        shell: bash
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+            echo "Using configured npm automation token."
+          else
+            echo "No classic npm token configured; using GitHub OIDC trusted publishing."
+          fi
+
+          set +e
+          npm publish --access public --provenance 2>&1 | tee npm-publish.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            while IFS= read -r line; do
+              line=${line//'%'/'%25'}
+              line=${line//$'\r'/'%0D'}
+              line=${line//$'\n'/'%0A'}
+              echo "::error title=npm publish::$line"
+            done < <(tail -n 20 npm-publish.log)
+            exit "$status"
+          fi
       - name: Create GitHub release and tag
         env:
           GH_TOKEN: ${{ github.token }}

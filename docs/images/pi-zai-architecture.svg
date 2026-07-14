@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="780" viewBox="0 0 1600 780" role="img" aria-labelledby="title desc">
+  <title id="title">pi-zai architecture</title>
+  <desc id="desc">Pi owns the agent runtime and native Z.AI provider while pi-zai adds lifecycle hooks and privacy-reduced local SQLite metrics</desc>
+  <rect width="1600" height="780" fill="#0d1117"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">
+    <text x="80" y="92" fill="#f0f6fc" font-size="34" font-weight="800">Request path</text>
+    <text x="80" y="134" fill="#8b949e" font-size="21">Pi stays in control. pi-zai observes and shapes selected lifecycle events.</text>
+
+    <rect x="80" y="222" width="246" height="112" rx="14" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+    <text x="118" y="270" fill="#7aa2f7" font-size="18" font-weight="700">INPUT</text>
+    <text x="118" y="310" fill="#f0f6fc" font-size="25" font-weight="800">You</text>
+
+    <line x1="326" y1="278" x2="406" y2="278" stroke="#7aa2f7" stroke-width="4"/>
+    <polygon points="398,268 418,278 398,288" fill="#7aa2f7"/>
+
+    <rect x="418" y="222" width="300" height="112" rx="14" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+    <text x="456" y="270" fill="#7aa2f7" font-size="18" font-weight="700">PI</text>
+    <text x="456" y="310" fill="#f0f6fc" font-size="25" font-weight="800">Agent runtime</text>
+
+    <line x1="718" y1="278" x2="798" y2="278" stroke="#7aa2f7" stroke-width="4"/>
+    <polygon points="790,268 810,278 790,288" fill="#7aa2f7"/>
+
+    <rect x="810" y="202" width="390" height="152" rx="14" fill="#161b22" stroke="#7aa2f7" stroke-width="3"/>
+    <text x="848" y="250" fill="#7aa2f7" font-size="18" font-weight="700">PI NATIVE PROVIDER</text>
+    <text x="848" y="292" fill="#f0f6fc" font-size="25" font-weight="800">zai / zai-coding-cn</text>
+    <text x="848" y="326" fill="#8b949e" font-size="18">HTTP, streaming, usage mapping</text>
+
+    <line x1="1200" y1="278" x2="1280" y2="278" stroke="#7aa2f7" stroke-width="4"/>
+    <polygon points="1272,268 1292,278 1272,288" fill="#7aa2f7"/>
+
+    <rect x="1292" y="222" width="228" height="112" rx="14" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+    <text x="1330" y="270" fill="#7aa2f7" font-size="18" font-weight="700">REMOTE</text>
+    <text x="1330" y="310" fill="#f0f6fc" font-size="25" font-weight="800">Z.AI API</text>
+
+    <rect x="484" y="456" width="716" height="164" rx="16" fill="#11161d" stroke="#7aa2f7" stroke-width="2"/>
+    <text x="526" y="506" fill="#7aa2f7" font-size="19" font-weight="700">PI-ZAI EXTENSION</text>
+    <text x="526" y="548" fill="#f0f6fc" font-size="23" font-weight="800">Lifecycle hooks + operator commands</text>
+    <text x="526" y="584" fill="#8b949e" font-size="18">thinking payload · cache analysis · headers · doctor · usage</text>
+
+    <line x1="1005" y1="354" x2="1005" y2="444" stroke="#7aa2f7" stroke-width="3" stroke-dasharray="8 8"/>
+    <polygon points="995,436 1015,436 1005,452" fill="#7aa2f7"/>
+    <text x="1025" y="410" fill="#8b949e" font-size="16">hooks</text>
+
+    <rect x="80" y="482" width="310" height="118" rx="14" fill="#161b22" stroke="#30363d" stroke-width="2"/>
+    <text x="118" y="530" fill="#7aa2f7" font-size="18" font-weight="700">LOCAL</text>
+    <text x="118" y="570" fill="#f0f6fc" font-size="24" font-weight="800">SQLite metrics</text>
+    <line x1="484" y1="541" x2="402" y2="541" stroke="#7aa2f7" stroke-width="3"/>
+    <polygon points="410,531 390,541 410,551" fill="#7aa2f7"/>
+
+    <rect x="1260" y="468" width="260" height="132" rx="14" fill="#161b22" stroke="#30363d" stroke-width="2" stroke-dasharray="8 8"/>
+    <text x="1298" y="516" fill="#8b949e" font-size="18" font-weight="700">OPTIONAL</text>
+    <text x="1298" y="554" fill="#f0f6fc" font-size="21" font-weight="800">Daily aggregates</text>
+    <text x="1298" y="582" fill="#8b949e" font-size="16">off by default</text>
+    <line x1="1200" y1="541" x2="1248" y2="541" stroke="#6e7681" stroke-width="3" stroke-dasharray="8 8"/>
+    <polygon points="1240,531 1260,541 1240,551" fill="#6e7681"/>
+
+    <line x1="80" y1="686" x2="1520" y2="686" stroke="#30363d" stroke-width="2"/>
+    <text x="80" y="730" fill="#8b949e" font-size="18">Local metrics: token counts, latency, status, controlled error categories, local hashes.</text>
+    <text x="80" y="758" fill="#8b949e" font-size="18">Not stored: prompts, source code, tool arguments, tool results, raw error bodies.</text>
+  </g>
+</svg>

@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="820" viewBox="0 0 1600 820" role="img" aria-labelledby="title desc">
+  <title id="title">Native Pi and Pi with pi-zai</title>
+  <desc id="desc">A factual comparison of the same native Z.AI path with and without pi-zai operator features</desc>
+  <rect width="1600" height="820" fill="#f6f8fa"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">
+    <text x="80" y="92" fill="#24292f" font-size="34" font-weight="800">Same runtime. More visibility.</text>
+    <text x="80" y="134" fill="#57606a" font-size="21">pi-zai extends Pi's native Z.AI path instead of replacing it.</text>
+
+    <rect x="80" y="184" width="690" height="522" rx="18" fill="#ffffff" stroke="#d0d7de" stroke-width="2"/>
+    <text x="126" y="246" fill="#57606a" font-size="19" font-weight="700">WITHOUT THE EXTENSION</text>
+    <text x="126" y="292" fill="#24292f" font-size="30" font-weight="800">Native Pi + Z.AI</text>
+
+    <rect x="126" y="332" width="598" height="58" rx="10" fill="#f6f8fa" stroke="#d8dee4"/>
+    <text x="154" y="369" fill="#24292f" font-size="20">Pi agent runtime, tools, sessions</text>
+    <line x1="426" y1="390" x2="426" y2="430" stroke="#8c959f" stroke-width="3"/>
+    <polygon points="418,422 434,422 426,434" fill="#8c959f"/>
+    <rect x="126" y="434" width="598" height="58" rx="10" fill="#f6f8fa" stroke="#d8dee4"/>
+    <text x="154" y="471" fill="#24292f" font-size="20">Pi native Z.AI provider + streaming</text>
+    <line x1="426" y1="492" x2="426" y2="532" stroke="#8c959f" stroke-width="3"/>
+    <polygon points="418,524 434,524 426,536" fill="#8c959f"/>
+    <rect x="126" y="536" width="598" height="58" rx="10" fill="#f6f8fa" stroke="#d8dee4"/>
+    <text x="154" y="573" fill="#24292f" font-size="20">Z.AI API</text>
+
+    <text x="126" y="648" fill="#57606a" font-size="18">You keep Pi's native controls, but cache behavior,</text>
+    <text x="126" y="678" fill="#57606a" font-size="18">request shaping, and local history are less visible.</text>
+
+    <rect x="830" y="184" width="690" height="522" rx="18" fill="#0d1117" stroke="#30363d" stroke-width="2"/>
+    <text x="876" y="246" fill="#7aa2f7" font-size="19" font-weight="700">WITH PI-ZAI</text>
+    <text x="876" y="292" fill="#f0f6fc" font-size="30" font-weight="800">The same native path</text>
+
+    <rect x="876" y="332" width="598" height="58" rx="10" fill="#161b22" stroke="#30363d"/>
+    <text x="904" y="369" fill="#f0f6fc" font-size="20">Pi agent runtime, tools, sessions</text>
+    <line x1="1176" y1="390" x2="1176" y2="430" stroke="#7aa2f7" stroke-width="3"/>
+    <polygon points="1168,422 1184,422 1176,434" fill="#7aa2f7"/>
+    <rect x="876" y="434" width="598" height="58" rx="10" fill="#161b22" stroke="#7aa2f7" stroke-width="2"/>
+    <text x="904" y="471" fill="#f0f6fc" font-size="20">Pi native Z.AI provider + pi-zai hooks</text>
+    <line x1="1176" y1="492" x2="1176" y2="532" stroke="#7aa2f7" stroke-width="3"/>
+    <polygon points="1168,524 1184,524 1176,536" fill="#7aa2f7"/>
+    <rect x="876" y="536" width="598" height="58" rx="10" fill="#161b22" stroke="#30363d"/>
+    <text x="904" y="573" fill="#f0f6fc" font-size="20">Z.AI API</text>
+
+    <rect x="876" y="620" width="180" height="46" rx="8" fill="#1f2937"/>
+    <text x="904" y="650" fill="#c9d1d9" font-size="17">cache visibility</text>
+    <rect x="1070" y="620" width="176" height="46" rx="8" fill="#1f2937"/>
+    <text x="1098" y="650" fill="#c9d1d9" font-size="17">request control</text>
+    <rect x="1260" y="620" width="214" height="46" rx="8" fill="#1f2937"/>
+    <text x="1288" y="650" fill="#c9d1d9" font-size="17">local diagnostics</text>
+
+    <rect x="80" y="744" width="1440" height="1" fill="#d0d7de"/>
+    <text x="80" y="786" fill="#57606a" font-size="18">Not a proxy. Not a provider replacement. Not a second agent runtime.</text>
+  </g>
+</svg>

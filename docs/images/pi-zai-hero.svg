@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="820" viewBox="0 0 1600 820" role="img" aria-labelledby="title desc">
+  <title id="title">pi-zai</title>
+  <desc id="desc">Native Z.AI controls, cache visibility, and local diagnostics for Pi</desc>
+  <rect width="1600" height="820" fill="#0d1117"/>
+  <rect x="48" y="48" width="1504" height="724" rx="18" fill="#11161d" stroke="#30363d" stroke-width="2"/>
+  <line x1="800" y1="48" x2="800" y2="772" stroke="#30363d" stroke-width="2"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">
+    <text x="104" y="150" fill="#7aa2f7" font-size="24" font-weight="700">PI EXTENSION</text>
+    <text x="104" y="258" fill="#f0f6fc" font-size="92" font-weight="800">pi-zai</text>
+    <text x="104" y="328" fill="#c9d1d9" font-size="30">Z.AI, without hiding the request path.</text>
+
+    <text x="104" y="420" fill="#f0f6fc" font-size="25" font-weight="700">Native controls</text>
+    <text x="104" y="458" fill="#8b949e" font-size="21">Pi off / high / max → Z.AI payload</text>
+
+    <text x="104" y="524" fill="#f0f6fc" font-size="25" font-weight="700">Cache visibility</text>
+    <text x="104" y="562" fill="#8b949e" font-size="21">Hit ratios, segments, fingerprints</text>
+
+    <text x="104" y="628" fill="#f0f6fc" font-size="25" font-weight="700">Local diagnostics</text>
+    <text x="104" y="666" fill="#8b949e" font-size="21">Bounded SQLite. No prompts or code.</text>
+
+    <rect x="856" y="104" width="640" height="560" rx="14" fill="#090c10" stroke="#30363d" stroke-width="2"/>
+    <circle cx="894" cy="140" r="7" fill="#f85149"/>
+    <circle cx="920" cy="140" r="7" fill="#d29922"/>
+    <circle cx="946" cy="140" r="7" fill="#3fb950"/>
+    <text x="1256" y="147" fill="#6e7681" font-size="16">example output</text>
+
+    <text x="896" y="214" fill="#7aa2f7" font-size="24">› /zai</text>
+    <text x="896" y="264" fill="#f0f6fc" font-size="22" font-weight="700">Z.AI status</text>
+    <text x="896" y="310" fill="#8b949e" font-size="20">Provider</text><text x="1100" y="310" fill="#c9d1d9" font-size="20">zai</text>
+    <text x="896" y="348" fill="#8b949e" font-size="20">Model</text><text x="1100" y="348" fill="#c9d1d9" font-size="20">glm-5.2</text>
+    <text x="896" y="386" fill="#8b949e" font-size="20">Thinking</text><text x="1100" y="386" fill="#c9d1d9" font-size="20">high → enabled</text>
+    <text x="896" y="424" fill="#8b949e" font-size="20">clear_thinking</text><text x="1100" y="424" fill="#3fb950" font-size="20">true</text>
+    <text x="896" y="462" fill="#8b949e" font-size="20">Metrics</text><text x="1100" y="462" fill="#c9d1d9" font-size="20">local</text>
+    <text x="896" y="500" fill="#8b949e" font-size="20">Telemetry</text><text x="1100" y="500" fill="#c9d1d9" font-size="20">off</text>
+
+    <line x1="896" y1="536" x2="1454" y2="536" stroke="#21262d" stroke-width="2"/>
+    <text x="896" y="582" fill="#8b949e" font-size="19">Cache</text>
+    <rect x="1000" y="562" width="302" height="24" rx="6" fill="#21262d"/>
+    <rect x="1000" y="562" width="224" height="24" rx="6" fill="#7aa2f7"/>
+    <text x="1324" y="582" fill="#c9d1d9" font-size="19">74%</text>
+
+    <rect x="856" y="694" width="184" height="42" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="880" y="722" fill="#c9d1d9" font-size="17">native Pi path</text>
+    <rect x="1054" y="694" width="178" height="42" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="1078" y="722" fill="#c9d1d9" font-size="17">local SQLite</text>
+    <rect x="1246" y="694" width="250" height="42" rx="8" fill="#161b22" stroke="#30363d"/>
+    <text x="1270" y="722" fill="#c9d1d9" font-size="17">no second chat client</text>
+  </g>
+</svg>

@@ -9,84 +9,93 @@ import { registerAdaptiveLoaderTool } from "./loader-tool.ts";
 import { observeAdaptiveToolImpact } from "./observe.ts";
 import { LOADER_TOOL_NAME } from "./types.ts";
 
-let loaderRegistered = false;
+export interface AdaptiveToolsSessionPolicy {
+	apply(): void;
+	restore(): void;
+}
 
-export function applyAdaptiveToolsSessionPolicy(
+function sameNames(left: string[], right: string[]): boolean {
+	if (left.length !== right.length) return false;
+	return left.every((name, index) => name === right[index]);
+}
+
+export function createAdaptiveToolsSessionPolicy(
 	pi: ExtensionAPI,
-	config: ZaiAdaptiveToolsConfig,
-): void {
-	sessionState.adaptiveTools = {
-		mode: config.mode,
-		loaderInvocations: sessionState.adaptiveTools?.loaderInvocations ?? 0,
-		lastAddedCount: sessionState.adaptiveTools?.lastAddedCount ?? 0,
+	getConfig: () => ZaiAdaptiveToolsConfig,
+): AdaptiveToolsSessionPolicy {
+	let loaderRegistered = false;
+	let active = false;
+	let baselineActive = new Set<string>();
+	let controlledNames = new Set<string>();
+	const loadedNames = new Set<string>();
+
+	const updateState = (
+		config: ZaiAdaptiveToolsConfig,
+		observation = sessionState.adaptiveTools?.observation,
+	): void => {
+		sessionState.adaptiveTools = {
+			mode: config.mode,
+			loaderInvocations: sessionState.adaptiveTools?.loaderInvocations ?? 0,
+			lastAddedCount: sessionState.adaptiveTools?.lastAddedCount ?? 0,
+			observation,
+		};
 	};
 
-	if (config.mode === "off") {
-		return;
-	}
-
-	if (config.mode === "observe") {
-		// Observe only: keep active tools unchanged and do not register loader.
-		observeAdaptiveToolImpact(pi, config);
-		return;
-	}
-
-	if (config.mode !== "manual") {
-		return;
-	}
-
-	if (!loaderRegistered) {
-		registerAdaptiveLoaderTool(pi, () => config);
-		loaderRegistered = true;
-	}
-
-	const deferred = collectDeferredToolNames(config);
-	const alwaysActive = new Set(
-		resolveExistingToolNames(pi, [...config.alwaysActive, LOADER_TOOL_NAME]),
-	);
-	const current = pi.getActiveTools();
-	const next = current.filter((name) => {
-		if (alwaysActive.has(name)) return true;
-		if (deferred.has(name)) return false;
-		// Preserve foreign / ungrouped tools owned by Pi or other extensions.
-		return true;
-	});
-
-	for (const name of alwaysActive) {
-		if (
-			!next.includes(name) &&
-			(name === LOADER_TOOL_NAME ||
-				pi.getAllTools().some((tool) => tool.name === name))
-		) {
-			next.push(name);
+	const setActiveToolsIfChanged = (next: Set<string>): void => {
+		const current = pi.getActiveTools();
+		const normalized = [...next];
+		if (!sameNames(current, normalized)) {
+			pi.setActiveTools(normalized);
 		}
-	}
+	};
 
-	// Ensure loader is active even if getAllTools has not refreshed yet.
-	if (!next.includes(LOADER_TOOL_NAME)) {
-		next.push(LOADER_TOOL_NAME);
-	}
+	const restore = (): void => {
+		if (!active) return;
+		const next = new Set(pi.getActiveTools());
+		for (const name of controlledNames) {
+			if (baselineActive.has(name)) next.add(name);
+			else next.delete(name);
+		}
+		setActiveToolsIfChanged(next);
+		active = false;
+		baselineActive = new Set();
+		controlledNames = new Set();
+		loadedNames.clear();
+	};
 
-	const capped =
-		config.maxInitialTools > 0 && next.length > config.maxInitialTools
-			? [
-					...next.filter(
-						(name) => alwaysActive.has(name) || name === LOADER_TOOL_NAME,
-					),
-					...next
-						.filter(
-							(name) => !alwaysActive.has(name) && name !== LOADER_TOOL_NAME,
-						)
-						.slice(
-							0,
-							Math.max(
-								0,
-								config.maxInitialTools -
-									[...alwaysActive, LOADER_TOOL_NAME].length,
-							),
-						),
-				]
-			: next;
+	const apply = (): void => {
+		const config = getConfig();
+		if (active) restore();
 
-	pi.setActiveTools([...new Set(capped)]);
+		const observation = observeAdaptiveToolImpact(pi, config);
+		updateState(config, observation);
+
+		if (config.mode === "off" || config.mode === "observe") {
+			return;
+		}
+		if (config.mode !== "manual") return;
+
+		baselineActive = new Set(pi.getActiveTools());
+		if (!loaderRegistered) {
+			registerAdaptiveLoaderTool(pi, getConfig, (toolNames) => {
+				for (const name of toolNames) loadedNames.add(name);
+			});
+			loaderRegistered = true;
+		}
+
+		const deferred = collectDeferredToolNames(config);
+		controlledNames = new Set([...deferred, LOADER_TOOL_NAME]);
+		const next = new Set(pi.getActiveTools());
+		for (const name of deferred) {
+			if (!loadedNames.has(name)) next.delete(name);
+		}
+		for (const name of resolveExistingToolNames(pi, config.alwaysActive)) {
+			next.add(name);
+		}
+		next.add(LOADER_TOOL_NAME);
+		setActiveToolsIfChanged(next);
+		active = true;
+	};
+
+	return { apply, restore };
 }

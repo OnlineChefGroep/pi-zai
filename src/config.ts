@@ -31,8 +31,6 @@ export interface ZaiTelemetrySettings {
 
 export interface ZaiAdaptiveToolsSettings {
 	mode?: AdaptiveToolsMode;
-	maxInitialTools?: number;
-	stickyLoadedTools?: boolean;
 	alwaysActive?: string[];
 	groups?: Record<string, string[]>;
 }
@@ -61,8 +59,7 @@ export interface ZaiMetricsConfig {
 
 export interface ZaiAdaptiveToolsConfig {
 	mode: AdaptiveToolsMode;
-	maxInitialTools: number;
-	stickyLoadedTools: boolean;
+	requestedMode: AdaptiveToolsMode;
 	alwaysActive: string[];
 	groups: Record<string, string[]>;
 	unsupportedMode: boolean;
@@ -112,7 +109,6 @@ const DEFAULT_ALWAYS_ACTIVE = [
 	"ls",
 	"zai_load_tools",
 ] as const;
-
 const METRICS_MODES = new Set<MetricsMode>(["off", "memory", "local"]);
 const TELEMETRY_MODES = new Set<TelemetryMode>(["off", "aggregate"]);
 
@@ -171,6 +167,18 @@ function parsePositiveInt(value: unknown, fallback: number): number {
 	return Math.floor(value);
 }
 
+function normalizeNames(
+	value: unknown,
+	fallback: readonly string[] = [],
+): string[] {
+	if (!Array.isArray(value)) return [...fallback];
+	const names = value
+		.filter((name): name is string => typeof name === "string")
+		.map((name) => name.trim())
+		.filter(Boolean);
+	return [...new Set(names)];
+}
+
 function loadMetricsConfig(
 	settings: ZaiSettings | undefined,
 ): ZaiMetricsConfig {
@@ -212,31 +220,25 @@ function loadAdaptiveToolsConfig(
 	settings: ZaiSettings | undefined,
 ): ZaiAdaptiveToolsConfig {
 	const adaptive = settings?.adaptiveTools;
-	const rawMode = parseEnum(adaptive?.mode, ADAPTIVE_TOOLS_MODES, "off");
-	// 0.5.0 ships off|observe|manual. adaptive/strict are accepted but unsupported.
-	const unsupportedMode = rawMode === "adaptive" || rawMode === "strict";
-	const mode: AdaptiveToolsMode = unsupportedMode ? "observe" : rawMode;
-	const alwaysActive =
-		Array.isArray(adaptive?.alwaysActive) && adaptive.alwaysActive.length > 0
-			? adaptive.alwaysActive.filter(
-					(name): name is string =>
-						typeof name === "string" && name.trim().length > 0,
-				)
-			: [...DEFAULT_ALWAYS_ACTIVE];
-	const groups: Record<string, string[]> = {};
+	const requestedMode = parseEnum(adaptive?.mode, ADAPTIVE_TOOLS_MODES, "off");
+	const unsupportedMode =
+		requestedMode === "adaptive" || requestedMode === "strict";
+	const mode: AdaptiveToolsMode = unsupportedMode ? "observe" : requestedMode;
+	const alwaysActive = normalizeNames(
+		adaptive?.alwaysActive,
+		DEFAULT_ALWAYS_ACTIVE,
+	);
+	const groups = Object.create(null) as Record<string, string[]>;
 	if (adaptive?.groups && typeof adaptive.groups === "object") {
-		for (const [group, tools] of Object.entries(adaptive.groups)) {
-			if (!Array.isArray(tools)) continue;
-			groups[group] = tools.filter(
-				(name): name is string =>
-					typeof name === "string" && name.trim().length > 0,
-			);
+		for (const [rawGroup, tools] of Object.entries(adaptive.groups)) {
+			const group = rawGroup.trim();
+			if (!group) continue;
+			groups[group] = normalizeNames(tools);
 		}
 	}
 	return {
 		mode,
-		maxInitialTools: parsePositiveInt(adaptive?.maxInitialTools, 8),
-		stickyLoadedTools: adaptive?.stickyLoadedTools ?? true,
+		requestedMode,
 		alwaysActive,
 		groups,
 		unsupportedMode,

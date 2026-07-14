@@ -27,6 +27,7 @@ export type MockExtensionApi = ExtensionAPI & {
 		unregister: string[];
 	};
 	commandCalls: RegisteredCommand[];
+	executeTool(name: string, params?: Record<string, unknown>): Promise<unknown>;
 };
 
 export function createZaiModel(): ZaiModel {
@@ -125,6 +126,10 @@ export function createMockExtensionApi(_options: {
 		name: string;
 		description?: string;
 		parameters?: unknown;
+		execute?: (
+			toolCallId: string,
+			params: Record<string, unknown>,
+		) => Promise<unknown> | unknown;
 	}> = [];
 	let activeTools: string[] = ["read", "grep", "find", "ls", "bash"];
 
@@ -163,11 +168,16 @@ export function createMockExtensionApi(_options: {
 			name: string;
 			description?: string;
 			parameters?: unknown;
+			execute?: (
+				toolCallId: string,
+				params: Record<string, unknown>,
+			) => Promise<unknown> | unknown;
 		}) {
 			registeredTools.push({
 				name: definition.name,
 				description: definition.description,
 				parameters: definition.parameters,
+				execute: definition.execute,
 			});
 			if (!activeTools.includes(definition.name)) {
 				activeTools = [...activeTools, definition.name];
@@ -231,6 +241,11 @@ export function createMockExtensionApi(_options: {
 		providerCalls,
 		commandCalls,
 		trigger: pi.trigger.bind(pi),
+		async executeTool(name: string, params: Record<string, unknown> = {}) {
+			const tool = registeredTools.find((candidate) => candidate.name === name);
+			if (!tool?.execute) throw new Error(`Tool ${name} is not executable`);
+			return tool.execute("test-tool-call", params);
+		},
 	}) as unknown as MockExtensionApi;
 }
 

@@ -1,6 +1,8 @@
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
 import { fingerprintToolset } from "./fingerprint.ts";
 import {
+	captureActiveToolset,
 	classifyToolsetTransition,
 	type ToolsetSnapshot,
 } from "./toolset-snapshot.ts";
@@ -15,6 +17,15 @@ function snap(tools: ToolsetSnapshot["tools"]): ToolsetSnapshot {
 }
 
 describe("classifyToolsetTransition", () => {
+	it("fails open when Pi tool enumeration throws", () => {
+		const pi = {
+			getActiveTools: () => {
+				throw new Error("temporary runtime failure");
+			},
+		} as unknown as ExtensionAPI;
+		expect(captureActiveToolset(pi)).toBeUndefined();
+	});
+
 	it("keeps stable toolsets unchanged", () => {
 		const previous = snap([
 			{ name: "read", description: "Read", parameters: { type: "object" } },

@@ -2,6 +2,13 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { ZaiAdaptiveToolsConfig } from "../config.ts";
 import { collectDeferredToolNames } from "./groups.ts";
 
+export interface AdaptiveToolObservation {
+	activeCount: number;
+	deferredCount: number;
+	estimatedDeferredSchemaBytes: number;
+	configuredGroupCount: number;
+}
+
 function estimateSchemaBytes(value: unknown): number {
 	try {
 		return Buffer.byteLength(JSON.stringify(value ?? null), "utf8");
@@ -13,12 +20,7 @@ function estimateSchemaBytes(value: unknown): number {
 export function observeAdaptiveToolImpact(
 	pi: ExtensionAPI,
 	config: ZaiAdaptiveToolsConfig,
-): {
-	activeCount: number;
-	deferredCount: number;
-	estimatedDeferredSchemaBytes: number;
-	configuredGroupCount: number;
-} {
+): AdaptiveToolObservation {
 	const active = new Set(pi.getActiveTools());
 	const deferred = collectDeferredToolNames(config);
 	let estimatedDeferredSchemaBytes = 0;
@@ -32,7 +34,7 @@ export function observeAdaptiveToolImpact(
 	}
 	return {
 		activeCount: active.size,
-		deferredCount: [...deferred].filter((name) => !active.has(name)).length,
+		deferredCount: [...deferred].filter((name) => active.has(name)).length,
 		estimatedDeferredSchemaBytes,
 		configuredGroupCount: Object.keys(config.groups).length,
 	};

@@ -57,7 +57,9 @@ function toolContentKey(tool: ToolFingerprintInput): {
 	};
 }
 
-export function captureActiveToolset(pi: ExtensionAPI): ToolsetSnapshot {
+export function captureActiveToolset(
+	pi: ExtensionAPI,
+): ToolsetSnapshot | undefined {
 	try {
 		const active = new Set(pi.getActiveTools());
 		const tools = pi
@@ -75,11 +77,7 @@ export function captureActiveToolset(pi: ExtensionAPI): ToolsetSnapshot {
 			tools,
 		};
 	} catch {
-		return {
-			count: 0,
-			fingerprint: fingerprintToolset([]),
-			tools: [],
-		};
+		return undefined;
 	}
 }
 

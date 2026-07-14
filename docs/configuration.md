@@ -13,8 +13,6 @@ Global: `~/.pi/agent/settings.json` (via Pi `getAgentDir()`)
     "sessionAffinity": "off",
     "adaptiveTools": {
       "mode": "off",
-      "maxInitialTools": 8,
-      "stickyLoadedTools": true,
       "alwaysActive": ["read", "grep", "find", "ls", "zai_load_tools"],
       "groups": {}
     },
@@ -51,8 +49,10 @@ Default `mode` is `off`. When enabled, pi-zai can keep a smaller initial active 
 Notes:
 
 - Always-active names are resolved against tools that actually exist in the session.
-- Grouped tools are deactivated at session start only when `manual` is enabled; tools owned by other extensions and ungrouped builtins stay available.
+- Grouped tools are deactivated only while a managed Z.AI model is active in `manual` mode; switching away restores the controlled tool state.
+- Tools owned by other extensions and ungrouped builtins are never capped or removed.
 - Lazy activation is additive. Z.AI still receives the full active tool list on the next request (Pi full-list fallback), and pi-zai rotates the cache segment once.
+- `observe` records the configured tool count and estimated schema bytes without registering a loader or changing active tools.
 - No extra model calls are made for tool selection in 0.5.0.
 
 ## Thinking override

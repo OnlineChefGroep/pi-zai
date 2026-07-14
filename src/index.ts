@@ -2,7 +2,7 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { clampThinkingLevel } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { applyAdaptiveToolsSessionPolicy } from "./adaptive-tools/index.ts";
+import { createAdaptiveToolsSessionPolicy } from "./adaptive-tools/index.ts";
 import {
 	applyZaiCompactionInstructions,
 	applyZaiTreeSummaryInstructions,
@@ -147,6 +147,7 @@ function syncToolsetAtProviderBoundary(
 	systemPrompt: string,
 ): void {
 	const snapshot = captureActiveToolset(pi);
+	if (!snapshot) return;
 	const transition = classifyToolsetTransition(
 		sessionState.lastToolsetSnapshot,
 		snapshot,
@@ -155,14 +156,13 @@ function syncToolsetAtProviderBoundary(
 
 	if (transition.changed) {
 		sessionState.toolsetGeneration += 1;
-		updateCacheSegment(model, systemPrompt, snapshot.fingerprint, [
-			`toolset:${transition.classification}`,
-		]);
-	} else if (!getCacheMetricsStore().get()?.segment) {
-		updateCacheSegment(model, systemPrompt, snapshot.fingerprint);
-	} else {
-		updateCacheSegment(model, systemPrompt, snapshot.fingerprint);
 	}
+	updateCacheSegment(
+		model,
+		systemPrompt,
+		snapshot.fingerprint,
+		transition.changed ? [`toolset:${transition.classification}`] : [],
+	);
 
 	sessionState.lastToolsetSnapshot = snapshot;
 	sessionState.lastToolsetTransition = {
@@ -216,6 +216,18 @@ async function ensureMetricsStorage(
 
 export default function piZaiExtension(pi: ExtensionAPI): void {
 	let config: ZaiConfig = loadZaiConfig();
+	const adaptiveToolsPolicy = createAdaptiveToolsSessionPolicy(
+		pi,
+		() => config.adaptiveTools,
+	);
+	const syncAdaptiveToolsPolicy = (model: ZaiModel | undefined): void => {
+		try {
+			if (isManagedZaiModel(model)) adaptiveToolsPolicy.apply();
+			else adaptiveToolsPolicy.restore();
+		} catch {
+			// Fail open: adaptive tooling must never block the Pi runtime.
+		}
+	};
 
 	sessionState.preserveThinking = config.preserveThinking;
 	registerZaiCommands(pi, createDefaultZaiCommandDeps(EXTENSION_VERSION));
@@ -236,13 +248,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			sessionState.adaptiveTools = undefined;
 		}
 
-		if (ctx.model && isManagedZaiModel(ctx.model)) {
-			try {
-				applyAdaptiveToolsSessionPolicy(pi, config.adaptiveTools);
-			} catch {
-				// Fail open: never block session start on adaptive tooling.
-			}
-		}
+		syncAdaptiveToolsPolicy(ctx.model);
 
 		sessionState.projectId = projectIdForCwd(ctx.cwd);
 		sessionState.sessionHash = hashSessionId(ctx.sessionManager.getSessionId());
@@ -278,6 +284,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_shutdown", async (_event, ctx) => {
+		adaptiveToolsPolicy.restore();
 		resetCacheMetrics();
 		resetTpsMetrics();
 		resetToolMetrics();
@@ -287,6 +294,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("model_select", async (event, ctx) => {
+		syncAdaptiveToolsPolicy(event.model);
 		clampThinkingForModel(pi, event.model);
 		updateSessionFromModel(event.model, pi.getThinkingLevel());
 		if (isZaiProvider(event.model.provider)) {
@@ -357,8 +365,14 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			}
 		}
 		// Baseline only; authoritative toolset check happens in before_provider_request.
-		updateCacheSegment(ctx.model, systemPromptForMetrics, snapshot.fingerprint);
-		sessionState.lastToolsetSnapshot = snapshot;
+		if (snapshot) {
+			updateCacheSegment(
+				ctx.model,
+				systemPromptForMetrics,
+				snapshot.fingerprint,
+			);
+			sessionState.lastToolsetSnapshot = snapshot;
+		}
 		sessionState.promptStability = snapshotPromptStability(
 			systemPromptForMetrics,
 		);
@@ -473,11 +487,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		}
 
 		try {
-			const systemPrompt =
-				sessionState.promptStability !== undefined
-					? ctx.getSystemPrompt()
-					: ctx.getSystemPrompt();
-			syncToolsetAtProviderBoundary(pi, ctx.model, systemPrompt);
+			syncToolsetAtProviderBoundary(pi, ctx.model, ctx.getSystemPrompt());
 		} catch {
 			// Fail open: keep current segment and continue the request.
 		}
@@ -526,11 +536,14 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		const hasHeader = (name: string): boolean =>
 			headerNames.some((key) => key.toLowerCase() === name.toLowerCase());
 
-		if (
-			config.sessionAffinity === "experimental" &&
-			!hasHeader("X-Session-Id") &&
-			!hasHeader("x-session-id")
-		) {
+		const hasAffinityHeader = [
+			"x-session-id",
+			"session-id",
+			"session_id",
+			"x-client-request-id",
+			"x-session-affinity",
+		].some(hasHeader);
+		if (config.sessionAffinity === "experimental" && !hasAffinityHeader) {
 			event.headers["X-Session-Id"] = sessionState.sessionAffinityId;
 		}
 		if (!hasHeader("User-Agent")) {

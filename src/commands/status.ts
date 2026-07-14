@@ -127,7 +127,18 @@ export function registerZaiStatusCommand(
 						? `gen ${sessionState.toolsetGeneration}; ${toolset.classification}; ${toolset.nextCount} tools`
 						: `gen ${sessionState.toolsetGeneration}; pending`,
 				),
-				formatKeyValue("Adaptive tools", config.adaptiveTools.mode),
+				formatKeyValue(
+					"Adaptive tools",
+					config.adaptiveTools.unsupportedMode
+						? `${config.adaptiveTools.requestedMode} → observe`
+						: config.adaptiveTools.mode,
+				),
+				formatKeyValue(
+					"Adaptive observation",
+					sessionState.adaptiveTools?.observation
+						? `${sessionState.adaptiveTools.observation.deferredCount} configured active tools; ~${sessionState.adaptiveTools.observation.estimatedDeferredSchemaBytes} schema bytes`
+						: "none",
+				),
 				formatKeyValue("Credentials", credentialSource),
 				formatKeyValue("Metrics", config.metrics.mode),
 				formatKeyValue("Telemetry", config.telemetryMode),

@@ -19,6 +19,7 @@ const LOADER_PARAMS = Type.Object({
 export function registerAdaptiveLoaderTool(
 	pi: ExtensionAPI,
 	getConfig: () => ZaiAdaptiveToolsConfig,
+	onLoaded: (toolNames: string[]) => void = () => {},
 ): void {
 	pi.registerTool({
 		name: LOADER_TOOL_NAME,
@@ -74,6 +75,7 @@ export function registerAdaptiveLoaderTool(
 
 			if (added.length > 0) {
 				pi.setActiveTools([...new Set([...active, ...added])]);
+				onLoaded(added);
 			}
 
 			if (!sessionState.adaptiveTools) {

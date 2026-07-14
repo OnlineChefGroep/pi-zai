@@ -1,16 +1,23 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import type { ProviderHeaders } from "@earendil-works/pi-ai";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { resolveZaiCapabilities } from "../capabilities.ts";
 import { EXTENSION_VERSION } from "../version.generated.ts";
+import type { ZaiModel } from "../zai-model.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
 import { formatHeading, formatKeyValue, joinCommandLines } from "./format.ts";
 import { requireZaiModel } from "./helpers.ts";
 
+const PI_PEER_FLOOR = "0.80.7";
+const PROBE_TIMEOUT_MS = 10_000;
+
+type ProbeSupport = boolean | "unknown";
+
 type ProbeResult = {
 	name: string;
-	supported: boolean | "unknown";
+	supported: ProbeSupport;
 	httpStatus?: number;
 	detail: string;
 };
@@ -25,20 +32,33 @@ type ProbeCache = {
 	updatedAt: string;
 };
 
+type ProbeIdentity = Pick<
+	ProbeCache,
+	"extensionVersion" | "piPeerFloor" | "provider" | "model" | "endpoint"
+>;
+
 function probeCachePath(): string {
 	return join(getAgentDir(), "state", "pi-zai", "capabilities-probe.json");
 }
 
-function readProbeCache(): ProbeCache | undefined {
+function probeIdentity(model: ZaiModel): ProbeIdentity {
+	return {
+		extensionVersion: EXTENSION_VERSION,
+		piPeerFloor: PI_PEER_FLOOR,
+		provider: model.provider,
+		model: model.id,
+		endpoint: model.baseUrl,
+	};
+}
+
+function readProbeCache(expected: ProbeIdentity): ProbeCache | undefined {
 	try {
-		const raw = readFileSync(probeCachePath(), "utf8");
-		const parsed = JSON.parse(raw) as ProbeCache;
-		if (
-			!parsed ||
-			typeof parsed !== "object" ||
-			parsed.extensionVersion !== EXTENSION_VERSION
-		) {
-			return undefined;
+		const parsed = JSON.parse(
+			readFileSync(probeCachePath(), "utf8"),
+		) as ProbeCache;
+		if (!parsed || typeof parsed !== "object") return undefined;
+		for (const [key, value] of Object.entries(expected)) {
+			if (parsed[key as keyof ProbeIdentity] !== value) return undefined;
 		}
 		return parsed;
 	} catch {
@@ -48,19 +68,58 @@ function readProbeCache(): ProbeCache | undefined {
 
 function writeProbeCache(cache: ProbeCache): void {
 	const path = probeCachePath();
-	mkdirSync(dirname(path), { recursive: true });
-	writeFileSync(path, `${JSON.stringify(cache, null, 2)}\n`, "utf8");
+	mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+	writeFileSync(
+		path,
+		`${JSON.stringify(cache, null, 2)}
+`,
+		{
+			encoding: "utf8",
+			mode: 0o600,
+		},
+	);
+	chmodSync(path, 0o600);
+}
+
+function normalizedHeaders(
+	headers: ProviderHeaders | undefined,
+	apiKey: string | undefined,
+): Record<string, string> {
+	const normalized: Record<string, string> = {};
+	for (const [name, value] of Object.entries(headers ?? {})) {
+		if (typeof value === "string") normalized[name] = value;
+	}
+	const hasAuthorization = Object.keys(normalized).some(
+		(name) => name.toLowerCase() === "authorization",
+	);
+	if (!hasAuthorization && apiKey) {
+		normalized.Authorization = `Bearer ${apiKey}`;
+	}
+	normalized["Content-Type"] = "application/json";
+	normalized["User-Agent"] = `pi-zai/${EXTENSION_VERSION}`;
+	return normalized;
+}
+
+function chatEndpoint(baseUrl: string): string {
+	const normalized = baseUrl.replace(/\/$/, "");
+	return normalized.endsWith("/chat/completions")
+		? normalized
+		: `${normalized}/chat/completions`;
 }
 
 async function runSyntheticProbe(
 	name: string,
-	runner: () => Promise<{ ok: boolean; status?: number; detail: string }>,
+	runner: () => Promise<{
+		supported: ProbeSupport;
+		status?: number;
+		detail: string;
+	}>,
 ): Promise<ProbeResult> {
 	try {
 		const result = await runner();
 		return {
 			name,
-			supported: result.ok,
+			supported: result.supported,
 			httpStatus: result.status,
 			detail: result.detail,
 		};
@@ -71,6 +130,33 @@ async function runSyntheticProbe(
 			detail: error instanceof Error ? error.message : "probe failed",
 		};
 	}
+}
+
+async function postProbe(
+	endpoint: string,
+	headers: Record<string, string>,
+	body: Record<string, unknown>,
+): Promise<Response> {
+	return fetch(endpoint, {
+		method: "POST",
+		headers,
+		body: JSON.stringify(body),
+		signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+	});
+}
+
+async function discardBody(response: Response): Promise<void> {
+	try {
+		await response.body?.cancel();
+	} catch {
+		// Response content is deliberately not retained by capability probes.
+	}
+}
+
+function formatSupport(value: ProbeSupport): string {
+	if (value === true) return "ok";
+	if (value === "unknown") return "unknown";
+	return "no";
 }
 
 export function registerZaiCapabilitiesCommand(
@@ -93,12 +179,13 @@ export function registerZaiCapabilitiesCommand(
 				model,
 				config.sessionAffinity,
 			);
+			const identity = probeIdentity(model);
 			const sub = args.trim().split(/\s+/)[0]?.toLowerCase() || "status";
 
 			if (sub === "probe") {
 				const confirmed = await ctx.ui.confirm(
 					"Live capability probes",
-					"Run synthetic Z.AI probes (several short requests; may incur billing). Continue?",
+					"Run four short synthetic Z.AI requests (may incur billing). Continue?",
 				);
 				if (!confirmed) {
 					ctx.ui.notify("Capability probe cancelled.", "info");
@@ -106,49 +193,49 @@ export function registerZaiCapabilitiesCommand(
 				}
 
 				const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-				if (!auth.ok || !auth.apiKey) {
+				if (!auth.ok) {
 					ctx.ui.notify(
-						"No API key available for live probes on the active provider.",
+						"No credentials available for live probes on the active provider.",
 						"warning",
 					);
 					return;
 				}
-				const apiKey = auth.apiKey;
+				const headers = normalizedHeaders(auth.headers, auth.apiKey);
+				if (
+					!Object.keys(headers).some(
+						(name) => name.toLowerCase() === "authorization",
+					)
+				) {
+					ctx.ui.notify(
+						"Resolved credentials do not contain an authorization header.",
+						"warning",
+					);
+					return;
+				}
 
-				const baseUrl = model.baseUrl.replace(/\/$/, "");
+				const endpoint = chatEndpoint(model.baseUrl);
+				const syntheticTool = {
+					type: "function",
+					function: {
+						name: "ping",
+						description: "Synthetic probe tool",
+						parameters: { type: "object", properties: {} },
+					},
+				};
 				const results: ProbeResult[] = [];
 
 				results.push(
 					await runSyntheticProbe("tool_choice=auto", async () => {
-						const response = await fetch(`${baseUrl}/chat/completions`, {
-							method: "POST",
-							headers: {
-								Authorization: `Bearer ${apiKey}`,
-								"Content-Type": "application/json",
-								"User-Agent": `pi-zai/${EXTENSION_VERSION}`,
-							},
-							body: JSON.stringify({
-								model: model.id,
-								messages: [{ role: "user", content: "Reply with OK" }],
-								tools: [
-									{
-										type: "function",
-										function: {
-											name: "ping",
-											description: "Synthetic probe tool",
-											parameters: {
-												type: "object",
-												properties: {},
-											},
-										},
-									},
-								],
-								tool_choice: "auto",
-								max_tokens: 8,
-							}),
+						const response = await postProbe(endpoint, headers, {
+							model: model.id,
+							messages: [{ role: "user", content: "Reply with OK" }],
+							tools: [syntheticTool],
+							tool_choice: "auto",
+							max_tokens: 8,
 						});
+						await discardBody(response);
 						return {
-							ok: response.ok,
+							supported: response.ok,
 							status: response.status,
 							detail: response.ok
 								? "accepted"
@@ -160,38 +247,19 @@ export function registerZaiCapabilitiesCommand(
 				for (const choice of ["none", "required"] as const) {
 					results.push(
 						await runSyntheticProbe(`tool_choice=${choice}`, async () => {
-							const response = await fetch(`${baseUrl}/chat/completions`, {
-								method: "POST",
-								headers: {
-									Authorization: `Bearer ${apiKey}`,
-									"Content-Type": "application/json",
-									"User-Agent": `pi-zai/${EXTENSION_VERSION}`,
-								},
-								body: JSON.stringify({
-									model: model.id,
-									messages: [{ role: "user", content: "Reply with OK" }],
-									tools: [
-										{
-											type: "function",
-											function: {
-												name: "ping",
-												description: "Synthetic probe tool",
-												parameters: {
-													type: "object",
-													properties: {},
-												},
-											},
-										},
-									],
-									tool_choice: choice,
-									max_tokens: 8,
-								}),
+							const response = await postProbe(endpoint, headers, {
+								model: model.id,
+								messages: [{ role: "user", content: "Reply with OK" }],
+								tools: [syntheticTool],
+								tool_choice: choice,
+								max_tokens: 8,
 							});
+							await discardBody(response);
 							return {
-								ok: response.ok,
+								supported: response.ok ? "unknown" : false,
 								status: response.status,
 								detail: response.ok
-									? "accepted (semantic obedience not verified)"
+									? "accepted; semantic obedience not verified"
 									: `rejected with HTTP ${response.status}`,
 							};
 						}),
@@ -200,49 +268,29 @@ export function registerZaiCapabilitiesCommand(
 
 				results.push(
 					await runSyntheticProbe("tool_stream=true", async () => {
-						const response = await fetch(`${baseUrl}/chat/completions`, {
-							method: "POST",
-							headers: {
-								Authorization: `Bearer ${apiKey}`,
-								"Content-Type": "application/json",
-								"User-Agent": `pi-zai/${EXTENSION_VERSION}`,
-							},
-							body: JSON.stringify({
-								model: model.id,
-								messages: [{ role: "user", content: "Reply with OK" }],
-								stream: true,
-								tool_stream: true,
-								max_tokens: 8,
-							}),
+						const response = await postProbe(endpoint, headers, {
+							model: model.id,
+							messages: [{ role: "user", content: "Call ping" }],
+							tools: [syntheticTool],
+							tool_choice: "auto",
+							stream: true,
+							tool_stream: true,
+							max_tokens: 8,
 						});
-						// Drain/cancel body without storing content.
-						try {
-							await response.body?.cancel();
-						} catch {
-							// ignore
-						}
+						await discardBody(response);
 						return {
-							ok: response.ok,
+							supported: response.ok,
 							status: response.status,
 							detail: response.ok
-								? "accepted"
+								? "accepted; streamed tool delta content not retained"
 								: `rejected with HTTP ${response.status}`,
 						};
 					}),
 				);
 
 				const cache: ProbeCache = {
-					extensionVersion: EXTENSION_VERSION,
-					piPeerFloor: "0.80.7",
-					provider: model.provider,
-					model: model.id,
-					endpoint: model.baseUrl,
-					results: results.map((result) => ({
-						name: result.name,
-						supported: result.supported,
-						httpStatus: result.httpStatus,
-						detail: result.detail,
-					})),
+					...identity,
+					results,
 					updatedAt: new Date().toISOString(),
 				};
 				writeProbeCache(cache);
@@ -251,7 +299,7 @@ export function registerZaiCapabilitiesCommand(
 					...formatHeading("Z.AI capability probes"),
 					...results.map(
 						(result) =>
-							`${result.name}: ${result.supported === true ? "ok" : "no"} (${result.detail})`,
+							`${result.name}: ${formatSupport(result.supported)} (${result.detail})`,
 					),
 					"Stored locally as status metadata only (no response bodies).",
 				];
@@ -259,7 +307,7 @@ export function registerZaiCapabilitiesCommand(
 				return;
 			}
 
-			const cache = readProbeCache();
+			const cache = readProbeCache(identity);
 			const lines = [
 				...formatHeading("Z.AI capabilities"),
 				formatKeyValue("Extension", deps.extensionVersion),
@@ -284,14 +332,14 @@ export function registerZaiCapabilitiesCommand(
 				formatKeyValue(
 					"Adaptive tools",
 					config.adaptiveTools.unsupportedMode
-						? `${config.adaptiveTools.mode} (unsupported→observe)`
+						? `${config.adaptiveTools.requestedMode} → observe (unsupported in 0.5.0)`
 						: config.adaptiveTools.mode,
 				),
 				formatKeyValue(
 					"Last probe cache",
 					cache
 						? `${cache.updatedAt} (${cache.results.length} results)`
-						: "none",
+						: "none for this provider/model/endpoint",
 				),
 				"",
 				"Use /zai-capabilities probe to run opt-in live checks.",

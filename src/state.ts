@@ -5,6 +5,7 @@ import type {
 	SessionStartEvent,
 	TurnEndEvent,
 } from "@earendil-works/pi-coding-agent";
+import type { AdaptiveToolObservation } from "./adaptive-tools/observe.ts";
 import { AttemptTracker } from "./attempt-tracker.ts";
 import { CacheMetricsStore } from "./cache/metrics.ts";
 import type {
@@ -57,6 +58,7 @@ export interface ZaiSessionState {
 				mode: string;
 				loaderInvocations: number;
 				lastAddedCount: number;
+				observation?: AdaptiveToolObservation;
 		  }
 		| undefined;
 }

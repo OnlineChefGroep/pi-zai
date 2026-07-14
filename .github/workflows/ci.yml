@@ -31,23 +31,19 @@ jobs:
           import traceback
 
           try:
-              docs = Path('docs/commands.md')
-              docs_text = docs.read_text()
-              docs_text = docs_text.replace(
-                  '- output and turn throughput',
-                  '- throughput (tok/s)',
-              )
-              docs_text = docs_text.replace(
-                  'A0–A3 cache benchmark manifest and local run tracking.',
-                  'A0–A3 cache benchmark harness and local run tracking.',
-              )
-              docs.write_text(docs_text)
-
               source = Path('.github/workflows/apply-v040-hardening.yml').read_text()
               raw = source.split("          python3 <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
               embedded = "\n".join(
                   line[10:] if line.startswith("          ") else line
                   for line in raw.splitlines()
+              )
+              embedded = embedded.replace(
+                  '"- throughput (tok/s)"',
+                  '"- output and turn throughput"',
+              )
+              embedded = embedded.replace(
+                  '"A0–A3 cache benchmark harness and local run tracking."',
+                  '"A0–A3 cache benchmark manifest and local run tracking."',
               )
               exec(embedded, {'__name__': '__main__'})
 

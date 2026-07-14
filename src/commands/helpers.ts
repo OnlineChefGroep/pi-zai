@@ -5,6 +5,7 @@ import {
 	isCodingPlanProvider,
 	isPlatformProvider,
 	isZaiModel,
+	isZaiProvider,
 } from "../cache/context-policy.ts";
 import { endpointLabel } from "../cache/metrics.ts";
 import type { ZaiConfig } from "../config.ts";
@@ -101,6 +102,7 @@ export function getLastAssistantUsage(
 		if (entry.type !== "message" || entry.message.role !== "assistant")
 			continue;
 		const assistant = entry.message as AssistantMessage;
+		if (!isZaiProvider(assistant.provider)) continue;
 		if (assistant.stopReason === "aborted" || assistant.stopReason === "error")
 			continue;
 		const promptTokens =
@@ -129,6 +131,7 @@ export function getSessionUsageTotals(
 		if (entry.type !== "message" || entry.message.role !== "assistant")
 			continue;
 		const assistant = entry.message as AssistantMessage;
+		if (!isZaiProvider(assistant.provider)) continue;
 		const usage = assistant.usage;
 		const promptTokens = usage.input + usage.cacheRead + usage.cacheWrite;
 		if (promptTokens <= 0 && usage.output <= 0) continue;

@@ -1,1 +1,0 @@
-{"version":3,"file":"types.d.ts","sourceRoot":"","sources":["../../src/adaptive-tools/types.ts"],"names":[],"mappings":"AAAA,eAAO,MAAM,gBAAgB,mBAAmB,CAAC;AAEjD,MAAM,MAAM,kBAAkB,GAAG;IAChC,SAAS,EAAE,MAAM,EAAE,CAAC;IACpB,KAAK,EAAE,MAAM,EAAE,CAAC;IAChB,aAAa,EAAE,MAAM,EAAE,CAAC;IACxB,OAAO,EAAE,MAAM,EAAE,CAAC;CAClB,CAAC"}

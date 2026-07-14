@@ -3,13 +3,12 @@ import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 /** Verified against https://docs.z.ai/guides/overview/pricing (USD per 1M tokens). */
 export const PLATFORM_BASE_URL = "https://api.z.ai/api/paas/v4";
 
-/** `null` hides Pi-only levels that Z.AI does not expose (off/high/max are the native efforts). */
+/** Keep this aligned with Pi's native GLM-5.2 catalog. */
 export const GLM52_THINKING_LEVEL_MAP = {
 	minimal: null,
-	low: null,
-	medium: null,
+	low: "high",
+	medium: "high",
 	high: "high",
-	xhigh: "max",
 	max: "max",
 } as const;
 
@@ -19,29 +18,18 @@ const BASE_ZAI_COMPAT = {
 	thinkingFormat: "zai",
 } as const;
 
+/**
+ * Kept for source compatibility. Preserved thinking is controlled by Pi's
+ * native payload and the before_provider_request override, not model metadata.
+ */
 export type PlatformModelCatalogOptions = {
 	preserveThinking?: boolean;
 };
 
-function withPreserveThinking(
-	model: ProviderModelConfig,
-	preserveThinking: boolean,
-): ProviderModelConfig {
-	if (!preserveThinking || !model.compat) return model;
-	return {
-		...model,
-		compat: {
-			...model.compat,
-			zaiPreserveThinking: true,
-		} as unknown as ProviderModelConfig["compat"],
-	};
-}
-
 export function buildPlatformModelCatalog(
-	options: PlatformModelCatalogOptions = {},
+	_options: PlatformModelCatalogOptions = {},
 ): ProviderModelConfig[] {
-	const preserveThinking = options.preserveThinking === true;
-	const models: ProviderModelConfig[] = [
+	return [
 		{
 			id: "glm-5.2",
 			name: "GLM-5.2",
@@ -141,6 +129,4 @@ export function buildPlatformModelCatalog(
 			},
 		},
 	];
-
-	return models.map((model) => withPreserveThinking(model, preserveThinking));
 }

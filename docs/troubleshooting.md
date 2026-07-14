@@ -129,6 +129,8 @@ Recovery options:
 3. Check `/zai` for adaptive mode and toolset generation; `/zai-doctor` reports unsupported `adaptive`/`strict` fallbacks.
 4. Remember: pi-zai only activates already-registered Pi/extension tools. It cannot proxy arbitrary foreign tool implementations.
 
+Switching away from a managed Z.AI model restores the controlled tool state. If Pi's tool registry is temporarily unavailable during restoration, pi-zai fails open so the model switch or session shutdown still completes.
+
 ## Cache segment churn after tool loading
 
 On Z.AI, dynamically activated tools use Pi's full-list fallback. The next provider request includes the expanded tool list and pi-zai starts a new cache segment once.
@@ -145,4 +147,3 @@ This is expected. Look for `/zai-cache` reasons that mention `toolset:` or a cha
 ## `/zai-capabilities probe` surprises
 
 Probes are never automatic. They require an explicit `/zai-capabilities probe` confirmation and may bill for short synthetic requests. Unsupported `tool_choice` values can return HTTP 4xx; that disables assuming those values in production. Results expire when the model, endpoint, Pi peer floor, or extension version changes.
-

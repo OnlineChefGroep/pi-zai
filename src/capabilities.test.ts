@@ -41,11 +41,24 @@ describe("resolveZaiCapabilities", () => {
 		expect(caps.toolChoiceSupportedByApi).toBe(false);
 	});
 
-	it("marks zai-coding-cn as Pi-native", () => {
+	it("marks zai-coding-cn as Pi-native on the China Coding Plan base URL", () => {
 		const caps = resolveZaiCapabilities(
-			model({ provider: "zai-coding-cn", api: "openai-completions" }),
+			model({
+				provider: "zai-coding-cn",
+				api: "openai-completions",
+				baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4",
+				compat: {
+					thinkingFormat: "zai",
+					zaiToolStream: true,
+					supportsReasoningEffort: true,
+				} as ZaiModel["compat"],
+			}),
 		);
 		expect(caps.providerOwnership).toBe("pi-native");
+		expect(caps.apiFamily).toBe("openai-completions");
+		expect(caps.dynamicToolMode).toBe("full-list-fallback");
+		expect(caps.usesZaiThinkingFormat).toBe(true);
+		expect(caps.streamsToolCalls).toBe(true);
 	});
 
 	it("marks zai-platform as platform ownership", () => {

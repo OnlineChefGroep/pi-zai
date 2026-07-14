@@ -153,13 +153,13 @@ Anonymous aggregate telemetry exists as an opt-in path and is off by default. It
 
 ## Endpoints
 
-| Provider | Route | Billing |
+| Provider | Base URL | Billing |
 |---|---|---|
-| `zai` | `api.z.ai/.../coding/paas/v4` | Coding Plan |
-| `zai-coding-cn` | `open.bigmodel.cn/.../coding/paas/v4` | Coding Plan (China) |
-| `zai-platform` | `api.z.ai/.../paas/v4` | Metered Platform API |
+| `zai` | `https://api.z.ai/api/coding/paas/v4` | Coding Plan (global) |
+| `zai-coding-cn` | `https://open.bigmodel.cn/api/coding/paas/v4` | Coding Plan (China) |
+| `zai-platform` | `https://api.z.ai/api/paas/v4` (manual `models.json`) | Metered Platform API |
 
-pi-zai does not override Pi's built-in `zai` or `zai-coding-cn` providers. Register `zai-platform` in `models.json` only when you need the metered endpoint.
+pi-zai does not override Pi's built-in `zai` or `zai-coding-cn` providers. Register `zai-platform` in `models.json` only when you need the metered endpoint. Adaptive tools, cache segmentation, and `/zai-capabilities` follow whichever of these models is active.
 
 ## Documentation
 

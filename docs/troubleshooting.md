@@ -102,6 +102,14 @@ Coding Plan models intentionally have zero per-token prices in Pi's model catalo
 
 `/zai` derives the active endpoint from the selected model's provider. There is no separate hidden endpoint toggle. Use `/zai-endpoint` or Pi's model picker.
 
+| Provider | Base URL | Label |
+|----------|----------|-------|
+| `zai` | `https://api.z.ai/api/coding/paas/v4` | `coding` |
+| `zai-coding-cn` | `https://open.bigmodel.cn/api/coding/paas/v4` | `coding-cn` |
+| `zai-platform` | metered Platform URL in `models.json` | `platform` |
+
+China Coding Plan (`zai-coding-cn`) is fully supported: credentials via `ZAI_CODING_CN_API_KEY`, quota monitor against `open.bigmodel.cn`, and the same cache/adaptive-tool behavior as global Coding Plan.
+
 ## Pi version too old
 
 ```bash

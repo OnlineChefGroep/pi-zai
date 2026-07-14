@@ -29,6 +29,7 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 - Opt-in Adaptive Tool Loader (`zai.adaptiveTools`) with `off` (default), `observe`, and `manual` modes plus `zai_load_tools`.
 - `/zai-capabilities` status view and opt-in live `/zai-capabilities probe` (synthetic requests only; results stored as local metadata).
 - CI lanes for exact Pi 0.80.7 minimum and latest compatible Pi packages.
+- Explicit China Coding Plan coverage for `zai-coding-cn` at `https://open.bigmodel.cn/api/coding/paas/v4` (catalog contract, docs, fixtures).
 
 ### Changed
 

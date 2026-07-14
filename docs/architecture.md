@@ -9,9 +9,12 @@ pi-zai is a **Pi extension** for Z.AI only. It does not replace Pi's agent runti
 ```text
 You  →  Pi (agent, tools, sessions)
          ↓
-       Pi native Z.AI providers (zai, zai-coding-cn, optional zai-platform)
+       Pi native Z.AI providers
+         - zai            → https://api.z.ai/api/coding/paas/v4
+         - zai-coding-cn  → https://open.bigmodel.cn/api/coding/paas/v4
+         - optional zai-platform (models.json)
          ↓
-       Z.AI API
+       Z.AI / BigModel API
          ↑
        pi-zai hooks (cache metrics, request inspection, headers, local SQLite)
 ```

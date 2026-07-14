@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Pi (`@earendil-works/pi-coding-agent`) `>= 0.80.0`
+- Pi (`@earendil-works/pi-coding-agent`) `>= 0.80.7`
 - Pi's built-in Z.AI providers (`zai`, `zai-coding-cn`)
 - Node.js `>= 22.19.0`
 
@@ -22,10 +22,11 @@ Contributors should use [Development](development.md) for repository installatio
 
 ## Credentials
 
-| Use | Environment variable | Provider |
-|-----|----------------------|----------|
-| Z.AI global/Coding Plan | `ZAI_API_KEY` | `zai`; optionally a manually registered `zai-platform` |
-| Coding Plan China | `ZAI_CODING_CN_API_KEY` | `zai-coding-cn` |
+| Use | Environment variable | Provider | Base URL |
+|-----|----------------------|----------|----------|
+| Z.AI global Coding Plan | `ZAI_API_KEY` | `zai` | `https://api.z.ai/api/coding/paas/v4` |
+| Coding Plan China | `ZAI_CODING_CN_API_KEY` | `zai-coding-cn` | `https://open.bigmodel.cn/api/coding/paas/v4` |
+| Metered Platform (optional) | same `ZAI_API_KEY` via Pi | manual `zai-platform` in `models.json` | `https://api.z.ai/api/paas/v4` |
 
 Configure credentials through Pi itself: `/login`, `~/.pi/agent/auth.json`, `models.json`, runtime `--api-key`, or environment variables. The extension does not add a separate credential resolver.
 
@@ -40,10 +41,10 @@ Never commit key values. pi-zai reports source names only, not secret values.
 
 ## First session
 
-1. Select a Pi-native Z.AI model, such as `zai/glm-5.2`.
+1. Select a Pi-native Z.AI model, such as `zai/glm-5.2` or China Coding Plan `zai-coding-cn/glm-5.2`.
 2. Run `/zai-doctor` to check the model mapping, credential source, preserved-thinking policy, retry settings, and optional network probes.
 3. Send several normal coding/tool turns.
-4. Run `/zai` for Z.AI-scoped session totals.
+4. Run `/zai` for Z.AI-scoped session totals (works for both global and China Coding Plan).
 5. Run `/zai-cache status` for the current provider/model/prompt/toolset segment.
 6. Compare with Pi Session Info only after accounting for the different scopes.
 

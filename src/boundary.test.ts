@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createExtensionContext,
 	createMockExtensionApi,
+	createZaiCodingCnModel,
 	createZaiModel,
 	runExtensionLifecycle,
 } from "../test/mock-extension-api.ts";
@@ -112,6 +113,21 @@ describe("extension boundary (runtime)", () => {
 		const ctx = createExtensionContext(cwd);
 
 		await runExtensionLifecycle(pi, ctx, { safePromptMode: true });
+
+		expect(fetchSpy).not.toHaveBeenCalled();
+		expect(pi.providerCalls.register).toEqual([]);
+		expect(pi.providerCalls.unregister).toEqual([]);
+	});
+
+	it("treats China Coding Plan (zai-coding-cn) as native without provider overrides", async () => {
+		const cwd = tempCwd();
+		const model = createZaiCodingCnModel();
+		expect(model.baseUrl).toBe("https://open.bigmodel.cn/api/coding/paas/v4");
+		const pi = createMockExtensionApi({ cwd, model });
+		piZaiExtension(pi);
+		const ctx = createExtensionContext(cwd, model);
+
+		await runExtensionLifecycle(pi, ctx);
 
 		expect(fetchSpy).not.toHaveBeenCalled();
 		expect(pi.providerCalls.register).toEqual([]);

@@ -33,7 +33,7 @@ Pi's Session Info labels the combined prompt total as **Input**, then splits it 
 `/zai-cache` deliberately reports the **current segment** only. A segment is keyed by:
 
 - provider
-- endpoint (`coding`, `platform`, or `coding-cn`)
+- endpoint (`coding` for `https://api.z.ai/api/coding/paas/v4`, `coding-cn` for `https://open.bigmodel.cn/api/coding/paas/v4`, or `platform`)
 - model id
 - stable system-prompt fingerprint
 - toolset fingerprint

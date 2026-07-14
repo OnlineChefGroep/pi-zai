@@ -1,7 +1,16 @@
 import { getBuiltinModels } from "@earendil-works/pi-ai/providers/all";
 import { describe, expect, it } from "vitest";
 import { resolveZaiCapabilities } from "./capabilities.ts";
+import {
+	isManagedZaiModel,
+	isNativeZaiModel,
+	isPiNativeZaiProvider,
+} from "./native-zai.ts";
+import { inferEndpoint, isZaiProvider } from "./state.ts";
 import type { ZaiModel } from "./zai-model.ts";
+
+const GLOBAL_CODING_BASE = "https://api.z.ai/api/coding/paas/v4";
+const CN_CODING_BASE = "https://open.bigmodel.cn/api/coding/paas/v4";
 
 function asModelList(value: unknown): ZaiModel[] {
 	if (Array.isArray(value)) return value as ZaiModel[];
@@ -11,38 +20,80 @@ function asModelList(value: unknown): ZaiModel[] {
 	return [];
 }
 
-describe("installed Pi Z.AI model contract", () => {
-	const models = asModelList(getBuiltinModels("zai"));
+function expectGlm52Contract(
+	model: ZaiModel | undefined,
+	provider: "zai" | "zai-coding-cn",
+	baseUrl: string,
+): void {
+	expect(model).toBeTruthy();
+	expect(model?.api).toBe("openai-completions");
+	expect(model?.provider).toBe(provider);
+	expect(model?.baseUrl).toBe(baseUrl);
+	const compat = model?.compat as Record<string, unknown> | undefined;
+	expect(compat?.thinkingFormat).toBe("zai");
+	expect(compat?.zaiToolStream).toBe(true);
+	expect(model?.thinkingLevelMap).toMatchObject({
+		low: "high",
+		medium: "high",
+		high: "high",
+		max: "max",
+	});
+	expect(isPiNativeZaiProvider(model?.provider)).toBe(true);
+	expect(isNativeZaiModel(model)).toBe(true);
+	expect(isManagedZaiModel(model)).toBe(true);
+	expect(isZaiProvider(model?.provider)).toBe(true);
+	const caps = resolveZaiCapabilities(model);
+	expect(caps.providerOwnership).toBe("pi-native");
+	expect(caps.apiFamily).toBe("openai-completions");
+	expect(caps.dynamicToolMode).toBe("full-list-fallback");
+	expect(caps.usesZaiThinkingFormat).toBe(true);
+	expect(caps.streamsToolCalls).toBe(true);
+	expect(caps.toolChoiceSupportedByApi).toBe(false);
+}
 
-	it("exposes glm-5.2 on openai-completions with Z.AI thinking and tool stream", () => {
-		const glm52 = models.find((model) => model.id === "glm-5.2");
-		expect(glm52).toBeTruthy();
-		expect(glm52?.api).toBe("openai-completions");
-		expect(glm52?.provider).toBe("zai");
-		const compat = glm52?.compat as Record<string, unknown> | undefined;
-		expect(compat?.thinkingFormat).toBe("zai");
-		expect(compat?.zaiToolStream).toBe(true);
-		expect(glm52?.thinkingLevelMap).toMatchObject({
-			low: "high",
-			medium: "high",
-			high: "high",
-			max: "max",
-		});
-		const caps = resolveZaiCapabilities(glm52);
-		expect(caps.providerOwnership).toBe("pi-native");
-		expect(caps.dynamicToolMode).toBe("full-list-fallback");
-		expect(caps.usesZaiThinkingFormat).toBe(true);
-		expect(caps.streamsToolCalls).toBe(true);
-		expect(caps.toolChoiceSupportedByApi).toBe(false);
+describe("installed Pi Z.AI model contract", () => {
+	const globalModels = asModelList(getBuiltinModels("zai"));
+	const cnModels = asModelList(getBuiltinModels("zai-coding-cn"));
+
+	it("exposes glm-5.2 on the global Coding Plan endpoint", () => {
+		expectGlm52Contract(
+			globalModels.find((model) => model.id === "glm-5.2"),
+			"zai",
+			GLOBAL_CODING_BASE,
+		);
+		expect(inferEndpoint("zai", GLOBAL_CODING_BASE)).toBe("coding");
 	});
 
-	it("recognizes glm-5v-turbo as text+image without extension ownership", () => {
-		const vision = models.find((model) => model.id === "glm-5v-turbo");
-		expect(vision).toBeTruthy();
-		expect(vision?.api).toBe("openai-completions");
-		expect(vision?.input).toEqual(expect.arrayContaining(["text", "image"]));
-		const caps = resolveZaiCapabilities(vision);
-		expect(caps.providerOwnership).toBe("pi-native");
-		expect(caps.dynamicToolMode).toBe("full-list-fallback");
+	it("exposes glm-5.2 on the China Coding Plan endpoint", () => {
+		expectGlm52Contract(
+			cnModels.find((model) => model.id === "glm-5.2"),
+			"zai-coding-cn",
+			CN_CODING_BASE,
+		);
+		expect(inferEndpoint("zai-coding-cn", CN_CODING_BASE)).toBe("coding-cn");
+	});
+
+	it("recognizes glm-5v-turbo as text+image on both Coding Plan endpoints", () => {
+		for (const [models, provider, baseUrl] of [
+			[globalModels, "zai", GLOBAL_CODING_BASE],
+			[cnModels, "zai-coding-cn", CN_CODING_BASE],
+		] as const) {
+			const vision = models.find((model) => model.id === "glm-5v-turbo");
+			expect(vision).toBeTruthy();
+			expect(vision?.provider).toBe(provider);
+			expect(vision?.baseUrl).toBe(baseUrl);
+			expect(vision?.api).toBe("openai-completions");
+			expect(vision?.input).toEqual(expect.arrayContaining(["text", "image"]));
+			const caps = resolveZaiCapabilities(vision);
+			expect(caps.providerOwnership).toBe("pi-native");
+			expect(caps.dynamicToolMode).toBe("full-list-fallback");
+		}
+	});
+
+	it("keeps China and global Coding Plan catalogs aligned by model id", () => {
+		const globalIds = globalModels.map((model) => model.id).sort();
+		const cnIds = cnModels.map((model) => model.id).sort();
+		expect(cnIds).toEqual(globalIds);
+		expect(globalIds.length).toBeGreaterThan(0);
 	});
 });

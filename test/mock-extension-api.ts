@@ -41,6 +41,22 @@ export function createZaiModel(): ZaiModel {
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: 200000,
 		maxTokens: 16384,
+		compat: {
+			supportsStore: false,
+			supportsDeveloperRole: false,
+			supportsReasoningEffort: true,
+			thinkingFormat: "zai",
+			zaiToolStream: true,
+		} as ZaiModel["compat"],
+	};
+}
+
+/** Pi-native China Coding Plan model (`zai-coding-cn`). */
+export function createZaiCodingCnModel(): ZaiModel {
+	return {
+		...createZaiModel(),
+		provider: "zai-coding-cn",
+		baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4",
 	};
 }
 

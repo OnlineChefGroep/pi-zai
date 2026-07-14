@@ -10,9 +10,18 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Changed
 
+- The default `preserveThinking` policy now leaves Pi's native Z.AI request unchanged. Current Pi releases send `clear_thinking=false` while thinking is enabled; users can still force `true` or `false` explicitly in settings.
+- GLM-5.2 thinking levels now mirror Pi's current native catalog: `low`, `medium`, and `high` map to Z.AI `high`; `max` maps to Z.AI `max`; `minimal` is hidden.
+- `/zai` now scopes session totals to Z.AI providers and labels uncached, cached, and cache-write tokens explicitly.
+- `/zai-cache` now describes the current cache segment rather than calling it the full session.
+
 ### Fixed
 
-- GLM-5.2 `thinkingLevelMap`: `xhigh` now maps to Z.AI `reasoning_effort: "max"` instead of forwarding the raw Pi level string. Previously `xhigh` was `null` in the map but Pi-core still treated it as selectable (its `null !== undefined` special case), so selecting `xhigh` sent an undocumented `reasoning_effort="xhigh"` to Z.AI. The strongest Z.AI effort is now reachable via the highest Pi level. Doctor check and `docs/thinking.md` updated to match.
+- `Session miss ratio` incorrectly used the latest request's miss ratio instead of the rolling segment ratio.
+- All-zero usage objects from connection failures could overwrite the last successful cache sample and inflate request counts.
+- Cache writes were omitted from the non-hit ratio.
+- `/zai-doctor`, the README, configuration docs, thinking docs, and cache docs described an obsolete `xhigh` mapping and the wrong `clear_thinking` default.
+- The cache-affinity benchmark documentation incorrectly called fixed `X-Session-Id` the default even though `sessionAffinity` defaults to `off`.
 
 ### Removed
 
@@ -114,8 +123,8 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 - Pi extension package scaffold with Z.AI Platform API provider registration
 - Implicit cache optimization layer (fingerprints, metrics, compaction policy, diagnostics)
 - Slash commands: `/zai`, `/zai-endpoint`, `/zai-cache`, `/zai-usage`, `/zai-doctor`
-- Cost-first defaults aligned with upstream Pi (`clear_thinking=true`, preserved thinking off)
-- Native Pi thinking integration for GLM-5.2 (`off` / `high` / `max` only)
+- Cost-first defaults aligned with the then-assumed upstream behavior (`clear_thinking=true`, preserved thinking off)
+- Initial GLM-5.2 thinking integration documentation
 - README with install, security, cache, and endpoint documentation
 
 ### Security

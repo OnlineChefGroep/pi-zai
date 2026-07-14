@@ -259,6 +259,46 @@ describe("NodeSqliteStorage", () => {
 		storage.close();
 	});
 
+
+	it("adds newly expired attempts to an existing daily rollup", () => {
+		const now = Date.parse("2026-07-14T12:00:00.000Z");
+		const occurredAt = Date.parse("2026-05-01T08:00:00.000Z");
+		const storage = sqliteStorage();
+		storage.recordAttempt(record({ occurredAt }));
+		storage.runCleanup(now, true);
+		storage.recordAttempt(record({ occurredAt: occurredAt + 1_000 }));
+		storage.runCleanup(now + 86_400_000, true);
+
+		expect(storage.getUsageSummary({ projectId: "project-a" })).toMatchObject({
+			attempts: 2,
+			inputTokens: 200,
+			cacheReadTokens: 1_800,
+		});
+		storage.close();
+	});
+
+	it("preserves totals across multiple size-limit rollup batches", () => {
+		const now = Date.parse("2026-07-14T12:00:00.000Z");
+		const storage = sqliteStorage({
+			retentionDays: 365,
+			maxDatabaseBytes: 1,
+		});
+		for (let index = 0; index < 1_200; index += 1) {
+			storage.recordAttempt(
+				record({ occurredAt: now - 10 * 86_400_000 + index }),
+			);
+		}
+
+		storage.runCleanup(now, true);
+		expect(storage.getStatus().detailRows).toBe(0);
+		expect(storage.getUsageSummary({ projectId: "project-a" })).toMatchObject({
+			attempts: 1_200,
+			inputTokens: 120_000,
+			cacheReadTokens: 1_080_000,
+		});
+		storage.close();
+	});
+
 	it("recreates an empty database after clear-all", () => {
 		const storage = sqliteStorage();
 		storage.recordAttempt(record());

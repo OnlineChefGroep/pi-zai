@@ -15,11 +15,7 @@ import {
 	formatBenchmarkRunReport,
 } from "../benchmark/report.ts";
 import type { BenchmarkRunManifest } from "../benchmark/types.ts";
-import {
-	getCacheMetricsStore,
-	getMetricsStorage,
-	sessionState,
-} from "../state.ts";
+import { getMetricsStorage, sessionState } from "../state.ts";
 import { projectIdForCwd } from "../storage/project-id.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
 
@@ -37,12 +33,20 @@ function createBenchmarkRunId(): string {
 	return `bench-${Date.now()}-${randomUUID().slice(0, 8)}`;
 }
 
-function completedRunsForVariant(variant: BenchmarkVariantId): number {
+function completedRunsForVariantScenario(
+	variant: BenchmarkVariantId,
+	scenario: BenchmarkRunManifest["scenario"],
+): number {
 	const storage = getMetricsStorage();
 	if (!storage) return 0;
 	return storage
 		.listBenchmarkRuns()
-		.filter((run) => run.variant === variant && run.report !== undefined)
+		.filter(
+			(run) =>
+				run.variant === variant &&
+				run.scenario === scenario &&
+				run.report !== undefined,
+		)
 		.length;
 }
 
@@ -193,19 +197,40 @@ export function registerZaiBenchmarkCommand(
 						return;
 					}
 
+					if (
+						run.manifest.sessionHash &&
+						sessionState.sessionHash !== run.manifest.sessionHash
+					) {
+						ctx.ui.notify(
+							"Complete the benchmark in the same Pi session in which it was started.",
+							"warning",
+						);
+						return;
+					}
+					if (
+						(run.manifest.provider &&
+							run.manifest.provider !== sessionState.provider) ||
+						(run.manifest.modelId && run.manifest.modelId !== sessionState.modelId)
+					) {
+						ctx.ui.notify(
+							"The active provider/model changed after benchmark start. Restore it before completing the run.",
+							"warning",
+						);
+						return;
+					}
 					const projectId = run.manifest.projectId;
 					const filter = { projectId, since: run.manifest.createdAt };
 					const completedAt = Date.now();
-					const projectSummary = storage.getUsageSummary({ projectId });
+					const usage = storage.getUsageSummary(filter);
 					const report = buildBenchmarkRunReport({
 						manifest: run.manifest,
 						completedAt,
-						usage: storage.getUsageSummary(filter),
+						usage,
 						transport: storage.getTransportSummary(filter),
-						cache: getCacheMetricsStore().get(),
-						completedRunsForVariant: completedRunsForVariant(run.variant) + 1,
-						turnsObserved:
-							projectSummary.attempts - run.manifest.attemptsBaseline,
+						cache: undefined,
+						completedRunsForVariant:
+							completedRunsForVariantScenario(run.variant, run.scenario) + 1,
+						turnsObserved: usage.attempts,
 					});
 					storage.completeBenchmarkRun(runId, report);
 					if (sessionState.activeBenchmarkRunId === runId) {

@@ -79,14 +79,19 @@ FROM provider_attempts
 WHERE occurred_at < ?
 GROUP BY 1, project_id, provider, model, extension_version
 ON CONFLICT(day, project_id, provider, model, extension_version) DO UPDATE SET
-  turn_count = excluded.turn_count,
-  attempt_count = excluded.attempt_count,
-  error_count = excluded.error_count,
-  input_tokens = excluded.input_tokens,
-  cache_read_tokens = excluded.cache_read_tokens,
-  cache_write_tokens = excluded.cache_write_tokens,
-  output_tokens = excluded.output_tokens,
-  estimated_api_cost_microusd = excluded.estimated_api_cost_microusd`;
+  turn_count = daily_rollups.turn_count + excluded.turn_count,
+  attempt_count = daily_rollups.attempt_count + excluded.attempt_count,
+  error_count = daily_rollups.error_count + excluded.error_count,
+  input_tokens = daily_rollups.input_tokens + excluded.input_tokens,
+  cache_read_tokens = daily_rollups.cache_read_tokens + excluded.cache_read_tokens,
+  cache_write_tokens = daily_rollups.cache_write_tokens + excluded.cache_write_tokens,
+  output_tokens = daily_rollups.output_tokens + excluded.output_tokens,
+  estimated_api_cost_microusd = daily_rollups.estimated_api_cost_microusd + excluded.estimated_api_cost_microusd`;
+
+const ROLLUP_ATTEMPT_BATCH_SQL = ROLLUP_ATTEMPTS_OLDER_THAN_SQL.replace(
+  "WHERE occurred_at < ?",
+  "WHERE id IN (SELECT id FROM provider_attempts WHERE occurred_at < ? ORDER BY occurred_at ASC LIMIT 500)",
+);
 
 export class NodeSqliteStorage implements MetricsStorage {
 	readonly kind = "sqlite" as const;
@@ -744,7 +749,7 @@ ORDER BY day ASC`,
 				this.options.maxDatabaseBytes;
 			batch += 1
 		) {
-			this.database.prepare(ROLLUP_ATTEMPTS_OLDER_THAN_SQL).run(preserveSince);
+			this.database.prepare(ROLLUP_ATTEMPT_BATCH_SQL).run(preserveSince);
 			const result = this.database
 				.prepare(
 					"DELETE FROM provider_attempts WHERE id IN (SELECT id FROM provider_attempts WHERE occurred_at < ? ORDER BY occurred_at ASC LIMIT 500)",

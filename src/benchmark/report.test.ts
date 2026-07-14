@@ -44,6 +44,44 @@ describe("buildBenchmarkRunReport", () => {
 			report.gates.find((gate) => gate.id === "sessions-per-variant")?.passed,
 		).toBe(false);
 	});
+
+	it("uses persisted run-window usage instead of a pre-existing cache segment", () => {
+		const report = buildBenchmarkRunReport({
+			manifest,
+			completedAt: 5_000,
+			usage: { ...EMPTY_USAGE_SUMMARY, attempts: 2, cacheHitRatio: 0.25 },
+			transport: EMPTY_TRANSPORT_SUMMARY,
+			cache: {
+				segment: {
+					provider: "zai",
+					endpoint: "coding",
+					model: "glm-5.2",
+					systemFingerprint: "system",
+					toolsetFingerprint: "tools",
+				},
+				last: undefined,
+				rolling: {
+					input: 0,
+					cacheRead: 1_000,
+					cacheWrite: 0,
+					output: 0,
+					requests: 99,
+					hitRatio: 1,
+					estimatedCost: 0,
+					estimatedSavings: 0,
+				},
+				segmentStartedAt: 0,
+			},
+			completedRunsForVariant: 1,
+			turnsObserved: 2,
+		});
+		expect(report.cache).toMatchObject({
+			requestsInSegment: 2,
+			cacheHitRatio: 0.25,
+			segmentChanges: 0,
+		});
+	});
+
 });
 
 describe("evaluateRunGates", () => {
@@ -75,8 +113,8 @@ describe("formatBenchmarkGatesSummary", () => {
 				}),
 			},
 		]);
-		expect(text).toContain("Completed runs by variant");
-		expect(text).toContain("A1: 1");
+		expect(text).toContain("Completed runs by variant/scenario");
+		expect(text).toContain("A1/stable-conversation: 1");
 	});
 });
 

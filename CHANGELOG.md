@@ -10,20 +10,36 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Changed
 
+### Fixed
+
+### Removed
+
+## [0.4.0] - 2026-07-14
+
+### Added
+
+- Reproducible npm release workflow with package validation, provenance, tag, and GitHub Release creation.
+- `npm run check:package` validates the published file set before release.
+
+### Changed
+
 - The default `preserveThinking` policy now leaves Pi's native Z.AI request unchanged. Current Pi releases send `clear_thinking=false` while thinking is enabled; users can still force `true` or `false` explicitly in settings.
 - GLM-5.2 thinking levels now mirror Pi's current native catalog: `low`, `medium`, and `high` map to Z.AI `high`; `max` maps to Z.AI `max`; `minimal` is hidden.
 - `/zai` now scopes session totals to Z.AI providers and labels uncached, cached, and cache-write tokens explicitly.
 - `/zai-cache` now describes the current cache segment rather than calling it the full session.
+- Throughput diagnostics now identify assistant stream-wall measurements accurately instead of labelling them as request TTFT or pure generation time.
+- Benchmark gates and A3/A1 comparisons are grouped by variant and scenario. Even-sized samples use the mathematical median.
+- Benchmark reports use persisted attempts recorded after run start rather than an older in-memory cache segment.
 
 ### Fixed
 
 - `Session miss ratio` incorrectly used the latest request's miss ratio instead of the rolling segment ratio.
 - All-zero usage objects from connection failures could overwrite the last successful cache sample and inflate request counts.
 - Cache writes were omitted from the non-hit ratio.
+- SQLite cleanup could overwrite existing daily rollups or repeatedly count rows across size-limit batches.
+- Benchmark completion could count runs from a different scenario toward the current scenario's gate.
 - `/zai-doctor`, the README, configuration docs, thinking docs, and cache docs described an obsolete `xhigh` mapping and the wrong `clear_thinking` default.
 - The cache-affinity benchmark documentation incorrectly called fixed `X-Session-Id` the default even though `sessionAffinity` defaults to `off`.
-
-### Removed
 
 ## [0.3.0] - 2026-07-12
 

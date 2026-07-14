@@ -46,8 +46,7 @@ function completedRunsForVariantScenario(
 				run.variant === variant &&
 				run.scenario === scenario &&
 				run.report !== undefined,
-		)
-		.length;
+		).length;
 }
 
 export function registerZaiBenchmarkCommand(
@@ -210,7 +209,8 @@ export function registerZaiBenchmarkCommand(
 					if (
 						(run.manifest.provider &&
 							run.manifest.provider !== sessionState.provider) ||
-						(run.manifest.modelId && run.manifest.modelId !== sessionState.modelId)
+						(run.manifest.modelId &&
+							run.manifest.modelId !== sessionState.modelId)
 					) {
 						ctx.ui.notify(
 							"The active provider/model changed after benchmark start. Restore it before completing the run.",

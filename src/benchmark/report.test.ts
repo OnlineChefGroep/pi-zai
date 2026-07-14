@@ -81,7 +81,6 @@ describe("buildBenchmarkRunReport", () => {
 			segmentChanges: 0,
 		});
 	});
-
 });
 
 describe("evaluateRunGates", () => {

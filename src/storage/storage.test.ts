@@ -259,7 +259,6 @@ describe("NodeSqliteStorage", () => {
 		storage.close();
 	});
 
-
 	it("adds newly expired attempts to an existing daily rollup", () => {
 		const now = Date.parse("2026-07-14T12:00:00.000Z");
 		const occurredAt = Date.parse("2026-05-01T08:00:00.000Z");

@@ -84,7 +84,9 @@ export function formatTpsTelemetryLines(stats: TpsStats | undefined): string[] {
 		`  Last stream: ${formatTps(last.tps)} output tok/s (${formatDurationMs(last.durationMs)} stream wall, ${last.outputTokens.toLocaleString("en-US")} output)`,
 	];
 	if (last.ttftMs !== undefined) {
-		lines.push(`  First content delta after stream start: ${formatDurationMs(last.ttftMs)}`);
+		lines.push(
+			`  First content delta after stream start: ${formatDurationMs(last.ttftMs)}`,
+		);
 	}
 	if (rolling.requests > 0) {
 		lines.push(

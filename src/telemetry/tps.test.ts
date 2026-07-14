@@ -104,28 +104,27 @@ describe("formatTpsStatusLine", () => {
 	});
 });
 
+describe("operator labels", () => {
+	it("describes message timings as stream-wall metrics", () => {
+		const tracker = new TpsTracker();
+		tracker.beginTurn(0);
+		tracker.beginAssistantMessage(100);
+		tracker.markFirstToken(250);
+		tracker.completeAssistantMessage({ output: 100, reasoning: 0 }, 1_100);
+		tracker.completeTurn({ toolMs: 0, toolCalls: 0, endedAt: 1_200 });
 
-	describe("operator labels", () => {
-		it("describes message timings as stream-wall metrics", () => {
-			const tracker = new TpsTracker();
-			tracker.beginTurn(0);
-			tracker.beginAssistantMessage(100);
-			tracker.markFirstToken(250);
-			tracker.completeAssistantMessage({ output: 100, reasoning: 0 }, 1_100);
-			tracker.completeTurn({ toolMs: 0, toolCalls: 0, endedAt: 1_200 });
-
-			const throughput = tracker.get();
-			expect(formatTpsTelemetryLines(throughput).join("\n")).toContain(
-				"First content delta after stream start",
-			);
-			expect(formatTpsTelemetryLines(throughput).join("\n")).not.toContain(
-				"TTFT",
-			);
-			expect(formatTurnThroughputLines(throughput.turn).join("\n")).toContain(
-				"Assistant streams",
-			);
-		});
+		const throughput = tracker.get();
+		expect(formatTpsTelemetryLines(throughput).join("\n")).toContain(
+			"First content delta after stream start",
+		);
+		expect(formatTpsTelemetryLines(throughput).join("\n")).not.toContain(
+			"TTFT",
+		);
+		expect(formatTurnThroughputLines(throughput.turn).join("\n")).toContain(
+			"Assistant streams",
+		);
 	});
+});
 
 describe("TpsTracker turn throughput", () => {
 	it("computes generation and effective TPS for a turn with tools", () => {

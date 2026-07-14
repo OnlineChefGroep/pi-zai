@@ -89,8 +89,8 @@ ON CONFLICT(day, project_id, provider, model, extension_version) DO UPDATE SET
   estimated_api_cost_microusd = daily_rollups.estimated_api_cost_microusd + excluded.estimated_api_cost_microusd`;
 
 const ROLLUP_ATTEMPT_BATCH_SQL = ROLLUP_ATTEMPTS_OLDER_THAN_SQL.replace(
-  "WHERE occurred_at < ?",
-  "WHERE id IN (SELECT id FROM provider_attempts WHERE occurred_at < ? ORDER BY occurred_at ASC LIMIT 500)",
+	"WHERE occurred_at < ?",
+	"WHERE id IN (SELECT id FROM provider_attempts WHERE occurred_at < ? ORDER BY occurred_at ASC LIMIT 500)",
 );
 
 export class NodeSqliteStorage implements MetricsStorage {

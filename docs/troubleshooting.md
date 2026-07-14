@@ -89,7 +89,7 @@ Older pi-zai documentation referred to `xhigh`; that no longer reflects the curr
 
 ## Extension not loading
 
-- Pi version must be at least `0.80.0`.
+- Pi version must be at least `0.80.7` for this release.
 - Run `/reload` after installing or updating.
 - Inspect Pi's extension startup errors.
 - Confirm that the installed npm version contains the desired fix; a GitHub merge alone does not update an existing npm installation.
@@ -108,4 +108,33 @@ Coding Plan models intentionally have zero per-token prices in Pi's model catalo
 pi --version
 ```
 
-Upgrade Pi before installing the extension when the version is below `0.80.0`.
+Upgrade Pi before installing the extension when the version is below `0.80.7`.
+
+## Adaptive tools leave required tools inactive
+
+If `zai.adaptiveTools.mode` is `manual`, grouped tools start inactive until the model calls `zai_load_tools`.
+
+Recovery options:
+
+1. Ask the model to load the needed group, or call `/reload` after setting `adaptiveTools.mode` to `off`.
+2. Confirm the group name exists under `zai.adaptiveTools.groups`.
+3. Check `/zai` for adaptive mode and toolset generation; `/zai-doctor` reports unsupported `adaptive`/`strict` fallbacks.
+4. Remember: pi-zai only activates already-registered Pi/extension tools. It cannot proxy arbitrary foreign tool implementations.
+
+## Cache segment churn after tool loading
+
+On Z.AI, dynamically activated tools use Pi's full-list fallback. The next provider request includes the expanded tool list and pi-zai starts a new cache segment once.
+
+This is expected. Look for `/zai-cache` reasons that mention `toolset:` or a changed toolset fingerprint. Stable toolsets should not reset the segment.
+
+## Duplicate or missing `X-Session-Id`
+
+- Default `sessionAffinity` is `off`.
+- `observe` never injects a header.
+- `experimental` adds `X-Session-Id` only when no case-insensitive upstream affinity header is already present.
+- `/zai-doctor` confirms whether affinity is enabled without displaying the identifier.
+
+## `/zai-capabilities probe` surprises
+
+Probes are never automatic. They require an explicit `/zai-capabilities probe` confirmation and may bill for short synthetic requests. Unsupported `tool_choice` values can return HTTP 4xx; that disables assuming those values in production. Results expire when the model, endpoint, Pi peer floor, or extension version changes.
+

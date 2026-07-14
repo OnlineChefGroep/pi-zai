@@ -92,6 +92,19 @@ describe("adaptive loader integration", () => {
 		expect(sessionState.lastToolsetTransition?.classification).toBe(
 			"tools-added",
 		);
+
+		await pi.trigger(
+			"model_select",
+			{
+				type: "model_select",
+				model: { ...createZaiModel(), id: "glm-5.1" },
+				previousModel: createZaiModel(),
+				source: "set",
+			},
+			ctx,
+		);
+		expect(pi.getActiveTools()).toContain("bash");
+
 		const generation = sessionState.toolsetGeneration;
 		await pi.trigger(
 			"before_provider_request",

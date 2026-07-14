@@ -17,6 +17,7 @@ const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 const tempRoot = mkdtempSync(join(tmpdir(), "pi-zai-consumer-install-"));
 const packDirectory = join(tempRoot, "pack");
 const consumerDirectory = join(tempRoot, "consumer");
+const extensionPackage = "@onlinechefgroep/pi-zai";
 const hostPackage = "@earendil-works/pi-coding-agent";
 const leakedPackages = [
 	hostPackage,
@@ -31,30 +32,39 @@ function packagePath(root, packageName) {
 	return join(root, "node_modules", ...packageName.split("/"));
 }
 
+function runNpm(args, cwd) {
+	return execFileSync(npmCommand, args, {
+		cwd,
+		encoding: "utf8",
+		stdio: ["ignore", "pipe", "pipe"],
+	});
+}
+
 try {
 	mkdirSync(packDirectory, { recursive: true });
 	mkdirSync(consumerDirectory, { recursive: true });
 
-	const packOutput = execFileSync(
-		npmCommand,
+	const packOutput = runNpm(
 		["pack", "--json", "--pack-destination", packDirectory],
-		{
-			cwd: packageRoot,
-			encoding: "utf8",
-			stdio: ["ignore", "pipe", "pipe"],
-		},
+		packageRoot,
 	);
 	const [packResult] = JSON.parse(packOutput);
-	assert.ok(packResult?.filename, "npm pack did not return a tarball filename");
-
-	const tarballPath = join(packDirectory, packResult.filename);
-	writeFileSync(
-		join(consumerDirectory, "package.json"),
-		`${JSON.stringify({ name: "pi-zai-consumer-check", private: true }, null, 2)}\n`,
+	assert.ok(
+		packResult?.filename,
+		"npm pack did not return a tarball filename",
 	);
 
-	execFileSync(
-		npmCommand,
+	const tarballPath = join(packDirectory, packResult.filename);
+	const consumerManifest = {
+		name: "pi-zai-consumer-check",
+		private: true,
+	};
+	writeFileSync(
+		join(consumerDirectory, "package.json"),
+		`${JSON.stringify(consumerManifest, null, 2)}\n`,
+	);
+
+	runNpm(
 		[
 			"install",
 			"--ignore-scripts",
@@ -63,20 +73,20 @@ try {
 			"--package-lock=false",
 			tarballPath,
 		],
-		{
-			cwd: consumerDirectory,
-			encoding: "utf8",
-			stdio: ["ignore", "pipe", "pipe"],
-		},
+		consumerDirectory,
 	);
 
 	const installedManifestPath = packagePath(
 		consumerDirectory,
-		"@onlinechefgroep/pi-zai/package.json",
+		`${extensionPackage}/package.json`,
 	);
-	assert.ok(existsSync(installedManifestPath), "packed extension was not installed");
+	assert.ok(
+		existsSync(installedManifestPath),
+		"packed extension was not installed",
+	);
 
-	const installedManifest = JSON.parse(readFileSync(installedManifestPath, "utf8"));
+	const manifestJson = readFileSync(installedManifestPath, "utf8");
+	const installedManifest = JSON.parse(manifestJson);
 	assert.equal(
 		installedManifest.peerDependenciesMeta?.[hostPackage]?.optional,
 		true,
@@ -90,8 +100,6 @@ try {
 			`standalone install unexpectedly provisioned ${packageName}`,
 		);
 	}
-
-	console.log("Consumer install is isolated from the Pi host dependency tree.");
 } finally {
 	rmSync(tempRoot, { recursive: true, force: true });
 }

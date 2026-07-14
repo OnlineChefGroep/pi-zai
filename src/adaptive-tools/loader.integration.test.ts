@@ -185,9 +185,10 @@ describe("adaptive loader integration", () => {
 			ctx,
 		);
 
-		(pi as unknown as { getActiveTools: () => string[] }).getActiveTools = () => {
-			throw new Error("tool registry unavailable");
-		};
+		(pi as unknown as { getActiveTools: () => string[] }).getActiveTools =
+			() => {
+				throw new Error("tool registry unavailable");
+			};
 		await expect(
 			pi.trigger(
 				"session_shutdown",

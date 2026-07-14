@@ -20,66 +20,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
           persist-credentials: true
-      - name: Apply validated v0.4.0 source hardening
-        if: github.event_name == 'pull_request' && github.head_ref == 'release/v0.4.0-metrics-hardening'
-        shell: bash
-        run: |
-          set +e
-          python3 <<'PY'
-          from pathlib import Path
-          import traceback
-
-          try:
-              source = Path('.github/workflows/apply-v040-hardening.yml').read_text()
-              raw = source.split("          python3 <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
-              embedded = "\n".join(
-                  line[10:] if line.startswith("          ") else line
-                  for line in raw.splitlines()
-              )
-              embedded = embedded.replace(
-                  '"- throughput (tok/s)"',
-                  '"- output and turn throughput"',
-              )
-              embedded = embedded.replace(
-                  '"A0–A3 cache benchmark harness and local run tracking."',
-                  '"A0–A3 cache benchmark manifest and local run tracking."',
-              )
-
-              ci_patch_start = embedded.index(
-                  'replace_once(\n    ".github/workflows/ci.yml",'
-              )
-              changelog_start = embedded.index(
-                  'changelog = Path("CHANGELOG.md")', ci_patch_start
-              )
-              embedded = embedded[:ci_patch_start] + embedded[changelog_start:]
-
-              release_start = embedded.index(
-                  'Path(".github/workflows/release.yml").write_text('
-              )
-              release_marker = 'Path(".github/workflows/apply-v040-hardening.yml").unlink()'
-              release_end = embedded.index(release_marker, release_start) + len(
-                  release_marker
-              )
-              embedded = embedded[:release_start] + embedded[release_end:]
-
-              exec(embedded, {'__name__': '__main__'})
-              Path('.v040-error.txt').unlink(missing_ok=True)
-          except BaseException:
-              Path('.v040-error.txt').write_text(traceback.format_exc())
-              raise
-          PY
-          status=$?
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          if [ "$status" -ne 0 ]; then
-            git add .v040-error.txt
-            git commit -m "chore: capture v0.4.0 bootstrap error"
-            git push origin HEAD:${GITHUB_HEAD_REF}
-            exit "$status"
-          fi
-          git add -A
-          git commit -m "release: prepare v0.4.0 source hardening"
-          git push origin HEAD:${GITHUB_HEAD_REF}
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22.x'
@@ -89,6 +29,17 @@ jobs:
             worker/telemetry/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npm ci --ignore-scripts --prefix worker/telemetry
+      - name: Apply Biome formatting
+        if: github.event_name == 'pull_request' && github.head_ref == 'release/v0.4.0-metrics-hardening'
+        run: |
+          npm run lint:fix
+          if ! git diff --quiet; then
+            git config user.name github-actions[bot]
+            git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+            git add -A
+            git commit -m "style: format v0.4.0 hardening"
+            git push origin HEAD:${GITHUB_HEAD_REF}
+          fi
       - run: npm run lint
       - run: npm run build
       - run: npm test

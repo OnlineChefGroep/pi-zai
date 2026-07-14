@@ -14,6 +14,13 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Removed
 
+## [0.4.1] - 2026-07-14
+
+### Fixed
+
+- Declared the Pi coding-agent host as an optional peer, preventing standalone extension installs from automatically provisioning Pi's full transitive dependency and install-script chain.
+- Added consumer-install validation to CI and release publishing so future package changes cannot silently reintroduce host dependencies such as `@google/genai`, `protobufjs`, `freebuff`, `ws`, or `@mimo-ai/cli`.
+
 ## [0.4.0] - 2026-07-14
 
 ### Added

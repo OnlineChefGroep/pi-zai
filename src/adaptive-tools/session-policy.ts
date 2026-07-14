@@ -19,12 +19,24 @@ function sameNames(left: string[], right: string[]): boolean {
 	return left.every((name, index) => name === right[index]);
 }
 
+function configSignature(config: ZaiAdaptiveToolsConfig): string {
+	const groups = Object.keys(config.groups)
+		.sort((left, right) => left.localeCompare(right))
+		.map((name) => [name, config.groups[name]] as const);
+	return JSON.stringify({
+		mode: config.mode,
+		alwaysActive: config.alwaysActive,
+		groups,
+	});
+}
+
 export function createAdaptiveToolsSessionPolicy(
 	pi: ExtensionAPI,
 	getConfig: () => ZaiAdaptiveToolsConfig,
 ): AdaptiveToolsSessionPolicy {
 	let loaderRegistered = false;
 	let active = false;
+	let activeSignature: string | undefined;
 	let baselineActive = new Set<string>();
 	let controlledNames = new Set<string>();
 	const loadedNames = new Set<string>();
@@ -49,22 +61,34 @@ export function createAdaptiveToolsSessionPolicy(
 		}
 	};
 
-	const restore = (): void => {
-		if (!active) return;
-		const next = new Set(pi.getActiveTools());
-		for (const name of controlledNames) {
-			if (baselineActive.has(name)) next.add(name);
-			else next.delete(name);
-		}
-		setActiveToolsIfChanged(next);
+	const clearRuntimeState = (): void => {
 		active = false;
+		activeSignature = undefined;
 		baselineActive = new Set();
 		controlledNames = new Set();
 		loadedNames.clear();
 	};
 
+	const restore = (): void => {
+		if (!active) return;
+		try {
+			const next = new Set(pi.getActiveTools());
+			for (const name of controlledNames) {
+				if (baselineActive.has(name)) next.add(name);
+				else next.delete(name);
+			}
+			setActiveToolsIfChanged(next);
+		} finally {
+			clearRuntimeState();
+		}
+	};
+
 	const apply = (): void => {
 		const config = getConfig();
+		const signature = configSignature(config);
+		if (active && activeSignature === signature) {
+			return;
+		}
 		if (active) restore();
 
 		const observation = observeAdaptiveToolImpact(pi, config);
@@ -95,6 +119,7 @@ export function createAdaptiveToolsSessionPolicy(
 		next.add(LOADER_TOOL_NAME);
 		setActiveToolsIfChanged(next);
 		active = true;
+		activeSignature = signature;
 	};
 
 	return { apply, restore };

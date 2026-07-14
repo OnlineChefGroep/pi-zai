@@ -31,11 +31,7 @@ jobs:
         run: npm run check:version
       - name: Build
         run: npm run build
-      - name: Test
-        run: npm test
-      - name: Validate consumer install
-        run: npm run check:consumer-install
-      - name: Commit validated fixes
+      - name: Commit formatted fixes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -43,3 +39,7 @@ jobs:
           git diff --cached --check
           git commit -m "fix: harden adaptive tools and capability probes"
           git push origin HEAD:${GITHUB_REF_NAME}
+      - name: Test committed state
+        run: npm test
+      - name: Validate consumer install
+        run: npm run check:consumer-install

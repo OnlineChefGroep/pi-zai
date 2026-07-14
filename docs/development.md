@@ -30,6 +30,7 @@ The monorepo copy is kept for Pi integration tests (`packages/coding-agent/test/
 cd packages/pi-zai
 npm run clean && npm run build
 npm test
+bash scripts/check-secrets.sh
 ```
 
 From monorepo root after code changes:

@@ -79,12 +79,16 @@ jobs:
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
+            grep -Ei 'npm error|npm ERR|ENEEDAUTH|E[0-9]{3}|EOTP|OIDC|auth|401|403|404|trusted' npm-publish.log | tail -n 10 > npm-publish-errors.log || true
+            if [ ! -s npm-publish-errors.log ]; then
+              tail -n 10 npm-publish.log > npm-publish-errors.log
+            fi
             while IFS= read -r line; do
               line=${line//'%'/'%25'}
               line=${line//$'\r'/'%0D'}
               line=${line//$'\n'/'%0A'}
               echo "::error title=npm publish::$line"
-            done < <(tail -n 20 npm-publish.log)
+            done < npm-publish-errors.log
             exit "$status"
           fi
       - name: Create GitHub release and tag

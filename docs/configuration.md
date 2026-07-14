@@ -8,7 +8,6 @@ Global: `~/.pi/agent/settings.json` (via Pi `getAgentDir()`)
 ```json
 {
   "zai": {
-    "preserveThinking": false,
     "statusTps": true,
     "statusTpsAvg": false,
     "sessionAffinity": "off",
@@ -30,6 +29,28 @@ Global: `~/.pi/agent/settings.json` (via Pi `getAgentDir()`)
 Project settings override global settings. pi-zai does not read `PI_ZAI_*` environment variables.
 
 How metrics and telemetry fit together: [Architecture](architecture.md). Allowlists and wipe commands: [Security](security.md).
+
+## Thinking override
+
+`preserveThinking` is optional. Omitting it leaves Pi's native Z.AI request unchanged.
+
+| Value | Behavior |
+|-------|----------|
+| omitted | Native Pi behavior; current Pi sends `clear_thinking=false` while thinking is enabled |
+| `true` | Force preserved thinking (`clear_thinking=false`) |
+| `false` | Force clearing historical reasoning (`clear_thinking=true`) |
+
+Use an explicit override only when you deliberately want to differ from Pi:
+
+```json
+{
+  "zai": {
+    "preserveThinking": false
+  }
+}
+```
+
+For coding and agent workflows, Z.AI recommends preserved thinking. Forcing `false` may reduce reasoning continuity and cache reuse.
 
 ## Telemetry
 
@@ -55,7 +76,7 @@ pi-zai does **not** auto-register `zai-platform`. Add it manually in `models.jso
 
 | Model | Context | Notes |
 |-------|---------|-------|
-| `glm-5.2` | 1M | Native `off`/`high`/`max` thinking |
+| `glm-5.2` | 1M | Pi `low`/`medium`/`high` → Z.AI `high`; Pi `max` → Z.AI `max` |
 | `glm-5.1` | 200K | Tool streaming |
 | `glm-5` | 200K | |
 | `glm-5-turbo` | 200K | |
@@ -81,9 +102,9 @@ On `/reload`, the extension:
 | `model_select` | Update endpoint and credential source |
 | `before_agent_start` | Update cache segment fingerprints |
 | `message_start` / `message_update` / `message_end` | Track assistant throughput (TPS, TTFT) |
-| `turn_end` | Record usage metrics to local storage |
+| `turn_end` | Record non-empty provider usage metrics to local storage |
 | `session_before_compact` | Inject Z.AI compaction instructions |
 | `session_before_tree` | Inject Z.AI branch summary instructions |
 | `session_compact` | Mark compaction timestamp |
-| `before_provider_request` | Normalize Z.AI `thinking` / `clear_thinking` from settings |
+| `before_provider_request` | Leave Pi native payload unchanged unless `preserveThinking` is explicitly set |
 | `before_provider_headers` | Optional `X-Session-Id` when `sessionAffinity=experimental` |

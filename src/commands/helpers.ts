@@ -55,19 +55,25 @@ export function describeClearThinking(
 		return "n/a (model has no reasoning)";
 	}
 	if (thinkingLevel === "off") {
-		return "true (thinking disabled)";
+		return "not sent (thinking disabled)";
 	}
-	if (config.preserveThinking) {
-		return "false (preserved thinking enabled)";
+	if (config.preserveThinking === true) {
+		return "false (forced preserved via settings)";
 	}
-	return "true (default cost-first)";
+	if (config.preserveThinking === false) {
+		return "true (forced clear via settings)";
+	}
+	return "false (Pi native)";
 }
 
 export function describePreservedThinking(config: ZaiConfig): string {
-	if (config.preserveThinking) {
-		return "enabled via settings.json";
+	if (config.preserveThinking === true) {
+		return "forced on via settings.json";
 	}
-	return "disabled (default; source: settings.json)";
+	if (config.preserveThinking === false) {
+		return "forced off via settings.json";
+	}
+	return "native Pi behavior";
 }
 
 export function describeThinkingPayload(
@@ -78,11 +84,10 @@ export function describeThinkingPayload(
 	if (!model?.reasoning) {
 		return "thinking disabled (non-reasoning model)";
 	}
-	const clearThinking =
-		thinkingLevel !== "off" && config.preserveThinking ? "false" : "true";
 	if (thinkingLevel === "off") {
-		return 'type="disabled", clear_thinking=true';
+		return 'type="disabled"';
 	}
+	const clearThinking = config.preserveThinking === false ? "true" : "false";
 	const mapped = model.thinkingLevelMap?.[thinkingLevel];
 	const effort = typeof mapped === "string" ? mapped : thinkingLevel;
 	return `type="enabled", reasoning_effort="${effort}", clear_thinking=${clearThinking}`;
@@ -98,6 +103,11 @@ export function getLastAssistantUsage(
 		const assistant = entry.message as AssistantMessage;
 		if (assistant.stopReason === "aborted" || assistant.stopReason === "error")
 			continue;
+		const promptTokens =
+			assistant.usage.input +
+			assistant.usage.cacheRead +
+			assistant.usage.cacheWrite;
+		if (promptTokens <= 0) continue;
 		return assistant.usage;
 	}
 	return undefined;
@@ -120,6 +130,8 @@ export function getSessionUsageTotals(
 			continue;
 		const assistant = entry.message as AssistantMessage;
 		const usage = assistant.usage;
+		const promptTokens = usage.input + usage.cacheRead + usage.cacheWrite;
+		if (promptTokens <= 0 && usage.output <= 0) continue;
 		totals.input += usage.input;
 		totals.output += usage.output;
 		totals.cacheRead += usage.cacheRead;
@@ -150,8 +162,8 @@ export function formatUsageLine(usage: Usage): string {
 	const promptTotal = usage.input + usage.cacheRead + usage.cacheWrite;
 	const hitRatio = promptTotal > 0 ? usage.cacheRead / promptTotal : 0;
 	return [
-		`input=${formatTokens(usage.input)}`,
-		`cacheRead=${formatTokens(usage.cacheRead)}`,
+		`uncached=${formatTokens(usage.input)}`,
+		`cached=${formatTokens(usage.cacheRead)}`,
 		`cacheWrite=${formatTokens(usage.cacheWrite)}`,
 		`output=${formatTokens(usage.output)}`,
 		`hit=${formatPercent(hitRatio)}`,

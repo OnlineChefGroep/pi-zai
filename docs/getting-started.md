@@ -2,75 +2,108 @@
 
 ## Requirements
 
-- Pi (`@earendil-works/pi-coding-agent`) **>= 0.80.0**
-- Built-in Z.AI providers (`zai`, `zai-coding-cn`) from upstream Pi
-- Node **>= 22.19.0** (package engine)
+- Pi (`@earendil-works/pi-coding-agent`) `>= 0.80.0`
+- Pi's built-in Z.AI providers (`zai`, `zai-coding-cn`)
+- Node.js `>= 22.19.0`
 
 ## Install
 
 ```bash
 pi install npm:@onlinechefgroep/pi-zai
+```
+
+Then reload Pi:
+
+```text
 /reload
 ```
 
-Contributors: see [Development](development.md) for monorepo install and testing.
+Contributors should use [Development](development.md) for repository installation and validation commands.
 
 ## Credentials
 
 | Use | Environment variable | Provider |
-|-----|---------------------|----------|
-| Z.AI (global) | `ZAI_API_KEY` | `zai`, `zai-platform` |
-| Coding Plan (CN) | `ZAI_CODING_CN_API_KEY` | `zai-coding-cn` |
+|-----|----------------------|----------|
+| Z.AI global/Coding Plan | `ZAI_API_KEY` | `zai`; optionally a manually registered `zai-platform` |
+| Coding Plan China | `ZAI_CODING_CN_API_KEY` | `zai-coding-cn` |
 
-Configure keys through Pi itself: `/login`, `~/.pi/agent/auth.json`, `models.json`, or env vars. The extension does not add a separate credential resolver.
+Configure credentials through Pi itself: `/login`, `~/.pi/agent/auth.json`, `models.json`, runtime `--api-key`, or environment variables. The extension does not add a separate credential resolver.
 
-Recommended layout:
+Optional shell layout:
 
 ```bash
-# ~/.config/zai/credentials.env (chmod 600) — optional shell convenience
+# ~/.config/zai/credentials.env — chmod 600
 export ZAI_API_KEY='...'
 ```
 
-Source from your shell profile, or store the key in Pi via `/login` or `auth.json`. Never commit key values.
-
-Pi also resolves credentials from `auth.json` and `models.json` command providers. The extension reports **source names only**, never secret values.
+Never commit key values. pi-zai reports source names only, not secret values.
 
 ## First session
 
-1. Select a Z.AI model (`zai/glm-5.2` or `zai-platform/glm-5.2`).
-2. Run `/zai-doctor` for offline checks and optional network probe.
-3. Send a prompt.
-4. Run `/zai-cache status` to inspect cache metrics.
+1. Select a Pi-native Z.AI model, such as `zai/glm-5.2`.
+2. Run `/zai-doctor` to check the model mapping, credential source, preserved-thinking policy, retry settings, and optional network probes.
+3. Send several normal coding/tool turns.
+4. Run `/zai` for Z.AI-scoped session totals.
+5. Run `/zai-cache status` for the current provider/model/prompt/toolset segment.
+6. Compare with Pi Session Info only after accounting for the different scopes.
+
+## Native thinking behavior
+
+Do not add `preserveThinking` for a normal installation. When omitted, pi-zai leaves Pi's native Z.AI request unchanged. Current Pi releases use `clear_thinking=false` while thinking is enabled.
+
+An override is available only for deliberate testing or policy changes:
+
+```json
+{
+  "zai": {
+    "preserveThinking": false
+  }
+}
+```
+
+This forces `clear_thinking=true` and can reduce reasoning continuity and cache reuse in longer coding/tool sessions. Remove the setting to restore native behavior.
 
 ## Choosing an endpoint
 
-| Choose | When |
-|--------|------|
-| Coding Plan (`zai`) | You have a Z.AI DevPack / Coding Plan subscription |
-| Platform (`zai-platform`) | You want metered billing with per-model cost metadata |
+| Endpoint | Use when |
+|----------|----------|
+| Coding Plan (`zai`) | You have a Z.AI DevPack or Coding Plan subscription |
+| Platform (`zai-platform`) | You manually registered a metered model with pricing metadata |
 
-Switch at any time:
+Switch through Pi's selected model:
 
 ```text
 /zai-endpoint coding
 /zai-endpoint platform
 ```
 
-The active endpoint always follows the selected model's provider. There is no hidden endpoint state.
+The active endpoint always follows the provider of the selected model. `zai-platform` is optional and is not registered automatically by pi-zai.
 
-## Privacy check (recommended)
+## Understanding cache output
+
+- Pi Session Info: all providers and models in the complete session.
+- `/zai`: Z.AI providers in the complete Pi session.
+- `/zai-cache`: current provider/model/stable-prompt/toolset segment.
+
+A connection error can create an all-zero assistant usage object. Corrected pi-zai versions ignore such objects as cache samples, so they do not replace the last successful request.
+
+## Privacy check
 
 ```text
 /zai-privacy preview
 /zai-data status
+/zai-telemetry status
 ```
 
-Read [Architecture](architecture.md) for how local metrics relate to Z.AI API traffic and why remote telemetry is off.
+Local metrics contain operational allowlisted fields, not prompt, source-code, reasoning, tool-argument, or tool-result text. Normal inference content still travels to Z.AI through Pi's native provider.
+
+Remote aggregate telemetry remains off until aggregate mode and explicit consent are both enabled.
 
 ## Next steps
 
-- [Architecture](architecture.md) — how pi-zai fits Pi and what is stored where
-- [Security](security.md) — allowlists and wipe commands
-- [Cache optimization](cache-optimization.md) — improve hit ratio and lower cost
-- [Thinking](thinking.md) — native levels and preserve opt-in
-- [Commands](commands.md) — full slash command reference
+- [Architecture](architecture.md) — ownership, request lifecycle, and data paths
+- [Security](security.md) — exact local and remote allowlists
+- [Cache optimization](cache-optimization.md) — scopes, ratios, and prompt stability
+- [Thinking](thinking.md) — current Pi mapping and explicit override behavior
+- [Commands](commands.md) — full slash-command reference
+- [Troubleshooting](troubleshooting.md) — connection, cache, and configuration issues

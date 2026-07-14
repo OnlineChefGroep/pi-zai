@@ -17,6 +17,7 @@ Status dashboard for the active Z.AI model:
 - Z.AI-provider session totals and cache-hit ratio
 - prompt-stability counts and fingerprint
 - metrics, telemetry, affinity, and prompt modes
+- API family, dynamic-tool mode, toolset generation, and adaptive-tools mode
 
 The cache section in `/zai` scans Pi session entries but includes Z.AI providers only. It can span multiple Z.AI models or cache segments. Pi's own Session Info remains the authoritative all-provider session total.
 
@@ -56,6 +57,17 @@ Z.AI-provider session usage with endpoint-specific interpretation:
 
 This command does not include non-Z.AI providers used earlier in the same Pi session.
 
+## `/zai-capabilities [status|probe]`
+
+Resolved Z.AI capability view for the active model:
+
+| Action | Description |
+|--------|-------------|
+| `status` (default) | Ownership, API family, dynamic-tool mode, thinking/tool-stream flags, adaptive mode, last probe cache summary |
+| `probe` | Opt-in synthetic live checks for `tool_choice` variants and `tool_stream`. Confirms billing risk first. Stores only status metadata locally. |
+
+Probes never run automatically. Response bodies and reasoning are not stored.
+
 ## `/zai-doctor`
 
 Integration checks and optional live probes:
@@ -65,7 +77,8 @@ Integration checks and optional live probes:
 - Platform pricing metadata
 - compaction-policy presence
 - prompt and tool fingerprint utilities
-- optional cache-affinity header (`X-Session-Id`)
+- optional cache-affinity header (`X-Session-Id`) without displaying the identifier
+- Pi compatibility / dynamic-tool / adaptive-tools summary
 - streamed usage and cached-token support
 - Pi retry-settings advice
 - optional `/models` reachability probe

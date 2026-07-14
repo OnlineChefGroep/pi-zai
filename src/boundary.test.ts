@@ -43,6 +43,7 @@ const EXPECTED_COMMANDS = [
 	"zai-data",
 	"zai-usage",
 	"zai-doctor",
+	"zai-capabilities",
 	"zai-privacy",
 	"zai-transport",
 	"zai-benchmark",

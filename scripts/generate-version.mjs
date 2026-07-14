@@ -22,7 +22,9 @@ if (mode === "check") {
 	try {
 		existing = readFileSync(generatedPath, "utf8");
 	} catch {
-		console.error(`Missing ${generatedPath}. Run: node scripts/generate-version.mjs`);
+		console.error(
+			`Missing ${generatedPath}. Run: node scripts/generate-version.mjs`,
+		);
 		process.exit(1);
 	}
 	if (existing !== contents) {

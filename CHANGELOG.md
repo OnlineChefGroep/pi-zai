@@ -14,6 +14,32 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Removed
 
+## [0.5.0] - 2026-07-14
+
+### Breaking Changes
+
+- Raised the optional Pi peer floor to `@earendil-works/pi-coding-agent >=0.80.7`.
+- `isNativeZaiModel()` now means Pi-native providers only (`zai`, `zai-coding-cn`). Use managed-provider helpers for shared Platform diagnostics.
+
+### Added
+
+- Pi 0.80.7 development baseline with generated `EXTENSION_VERSION` single source of truth and `npm run check:version`.
+- Capability resolution (`resolveZaiCapabilities`) for ownership, API family, dynamic-tool mode, thinking format, and affinity source.
+- Request-boundary active-toolset capture with privacy-safe transition classification and cache-segment rotation for dynamic tool loads.
+- Opt-in Adaptive Tool Loader (`zai.adaptiveTools`) with `off` (default), `observe`, and `manual` modes plus `zai_load_tools`.
+- `/zai-capabilities` status view and opt-in live `/zai-capabilities probe` (synthetic requests only; results stored as local metadata).
+- CI lanes for exact Pi 0.80.7 minimum and latest compatible Pi packages.
+
+### Changed
+
+- Authoritative toolset fingerprints are recomputed in `before_provider_request`, not only in `before_agent_start`.
+- Session-affinity header injection skips case-insensitive duplicates and never prints affinity identifiers in doctor output.
+- `/zai` and `/zai-doctor` report API family, dynamic-tool mode, toolset generation, and adaptive-tools mode.
+
+### Fixed
+
+- Extension runtime version no longer drifts from `package.json`.
+
 ## [0.4.1] - 2026-07-14
 
 ### Fixed

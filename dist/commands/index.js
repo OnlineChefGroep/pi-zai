@@ -2,6 +2,7 @@ import { loadZaiConfig } from "../config.js";
 import { formatPiCredentialSource } from "../credentials.js";
 import { registerZaiBenchmarkCommand } from "./benchmark.js";
 import { registerZaiCacheCommand } from "./cache.js";
+import { registerZaiCapabilitiesCommand } from "./capabilities.js";
 import { registerZaiDataCommand } from "./data.js";
 import { isPlatformProviderRegistered, resolveModelForEndpoint, } from "./deps.js";
 import { registerZaiDoctorCommand } from "./doctor.js";
@@ -19,6 +20,7 @@ export function registerZaiCommands(pi, deps) {
     registerZaiDataCommand(pi, deps);
     registerZaiUsageCommand(pi, deps);
     registerZaiDoctorCommand(pi, deps);
+    registerZaiCapabilitiesCommand(pi, deps);
     registerZaiPrivacyCommand(pi, deps);
     registerZaiTransportCommand(pi);
     registerZaiBenchmarkCommand(pi, deps);

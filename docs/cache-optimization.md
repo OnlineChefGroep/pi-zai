@@ -40,6 +40,16 @@ Pi's Session Info labels the combined prompt total as **Input**, then splits it 
 
 Segment metrics reset when any key changes or when the extension starts a new session. This is why `/zai-cache` can show fewer tokens than Pi's full Session Info. Cross-endpoint and cross-model cache transfer is not assumed.
 
+### Dynamic tools on Z.AI
+
+Pi 0.80.7 can activate tools during a tool execution and annotate `addedToolNames` on the tool result. Providers with native deferred loading keep the cached prefix; Z.AI's `openai-completions` path instead receives the full active tool list on the next request. pi-zai therefore:
+
+1. fingerprints the active toolset immediately before each provider request;
+2. classifies additive/removal/schema transitions without storing raw tool names in metrics;
+3. starts a new cache segment exactly once when the effective toolset changes.
+
+Optional `zai.adaptiveTools.manual` mode uses this plumbing for application-level deferred loading via `zai_load_tools`.
+
 All-zero usage objects from connection failures or local command responses are ignored. They do not replace the last successful cache sample or increment the provider request count.
 
 ## Prompt stability

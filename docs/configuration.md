@@ -11,6 +11,13 @@ Global: `~/.pi/agent/settings.json` (via Pi `getAgentDir()`)
     "statusTps": true,
     "statusTpsAvg": false,
     "sessionAffinity": "off",
+    "adaptiveTools": {
+      "mode": "off",
+      "maxInitialTools": 8,
+      "stickyLoadedTools": true,
+      "alwaysActive": ["read", "grep", "find", "ls", "zai_load_tools"],
+      "groups": {}
+    },
     "promptStability": { "mode": "observe" },
     "metrics": {
       "mode": "local",
@@ -29,6 +36,24 @@ Global: `~/.pi/agent/settings.json` (via Pi `getAgentDir()`)
 Project settings override global settings. pi-zai does not read `PI_ZAI_*` environment variables.
 
 How metrics and telemetry fit together: [Architecture](architecture.md). Allowlists and wipe commands: [Security](security.md).
+
+## Adaptive tools (experimental)
+
+Default `mode` is `off`. When enabled, pi-zai can keep a smaller initial active toolset and activate configured groups through `zai_load_tools` using Pi's `setActiveTools()` API.
+
+| Mode | Behavior |
+|------|----------|
+| `off` | Native Pi toolset (default) |
+| `observe` | Estimate deferred-schema impact; do not change active tools |
+| `manual` | Register `zai_load_tools` and activate explicit groups additively |
+| `adaptive` / `strict` | Accepted in settings but unsupported in 0.5.0; falls back to `observe` with a doctor warning |
+
+Notes:
+
+- Always-active names are resolved against tools that actually exist in the session.
+- Grouped tools are deactivated at session start only when `manual` is enabled; tools owned by other extensions and ungrouped builtins stay available.
+- Lazy activation is additive. Z.AI still receives the full active tool list on the next request (Pi full-list fallback), and pi-zai rotates the cache segment once.
+- No extra model calls are made for tool selection in 0.5.0.
 
 ## Thinking override
 

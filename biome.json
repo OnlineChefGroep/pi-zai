@@ -8,9 +8,9 @@
 	"files": {
 		"includes": [
 			"**",
-			"!**/dist/**",
-			"!**/node_modules/**",
-			"!**/worker/telemetry/node_modules/**"
+			"!**/dist",
+			"!**/node_modules",
+			"!**/worker/telemetry/node_modules"
 		]
 	},
 	"formatter": {

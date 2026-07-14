@@ -105,7 +105,6 @@ describe("extension boundary (runtime)", () => {
 	});
 
 	it("does not call fetch across the full extension lifecycle when telemetry is off", async () => {
-		// Mock lifecycle: in-process hook triggers, zero network/LLM — see file header.
 		const cwd = tempCwd();
 		const pi = createMockExtensionApi({ cwd, model: createZaiModel() });
 		piZaiExtension(pi);
@@ -191,6 +190,11 @@ describe("extension boundary (runtime)", () => {
 		piZaiExtension(pi);
 		const ctx = createExtensionContext(cwd);
 
+		await pi.trigger(
+			"session_start",
+			{ type: "session_start", reason: "startup" },
+			ctx,
+		);
 		const [result] = await pi.trigger(
 			"before_provider_request",
 			{
@@ -210,6 +214,11 @@ describe("extension boundary (runtime)", () => {
 		piZaiExtension(pi);
 		const ctx = createExtensionContext(cwd);
 
+		await pi.trigger(
+			"session_start",
+			{ type: "session_start", reason: "startup" },
+			ctx,
+		);
 		const [result] = await pi.trigger(
 			"before_provider_request",
 			{
@@ -282,7 +291,6 @@ describe("extension boundary (runtime)", () => {
 			ctx,
 		);
 
-		// No pending telemetry days means sync should not upload yet.
 		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 });

@@ -16,10 +16,18 @@ patterns=(
 	'ghp_[A-Za-z0-9]{20,}'
 )
 
+command -v rg >/dev/null || { echo "rg is required" >&2; exit 2; }
+
 found=0
 for pattern in "${patterns[@]}"; do
-	if eval "rg -n --glob '!dist/**' --glob '!node_modules/**' '$pattern' ${SCAN_PATHS[*]}" 2>/dev/null; then
+	if rg -n --glob '!dist/**' --glob '!node_modules/**' "$pattern" "${SCAN_PATHS[@]}"; then
 		found=1
+	else
+		status=$?
+		if [[ "$status" -ne 1 ]]; then
+			echo "check-secrets: rg failed while scanning for pattern (exit $status)" >&2
+			exit "$status"
+		fi
 	fi
 done
 

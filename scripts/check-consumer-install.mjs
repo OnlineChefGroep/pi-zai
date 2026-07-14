@@ -40,6 +40,23 @@ function runNpm(args, cwd) {
 	});
 }
 
+function collectInstalledPackages(tree) {
+	const installedPackages = new Set();
+	const pendingDependencies = [tree.dependencies ?? {}];
+
+	while (pendingDependencies.length > 0) {
+		const dependencies = pendingDependencies.pop() ?? {};
+		for (const [packageName, dependency] of Object.entries(dependencies)) {
+			if (typeof dependency.version === "string") {
+				installedPackages.add(packageName);
+			}
+			pendingDependencies.push(dependency.dependencies ?? {});
+		}
+	}
+
+	return installedPackages;
+}
+
 try {
 	mkdirSync(packDirectory, { recursive: true });
 	mkdirSync(consumerDirectory, { recursive: true });
@@ -90,9 +107,13 @@ try {
 		`${hostPackage} must remain an optional peer dependency`,
 	);
 
+	const dependencyTree = JSON.parse(
+		runNpm(["ls", "--all", "--json"], consumerDirectory),
+	);
+	const installedPackages = collectInstalledPackages(dependencyTree);
 	for (const packageName of leakedPackages) {
 		assert.equal(
-			existsSync(packagePath(consumerDirectory, packageName)),
+			installedPackages.has(packageName),
 			false,
 			`standalone install unexpectedly provisioned ${packageName}`,
 		);

@@ -32,3 +32,4 @@ jobs:
       - run: npm run build
       - run: npm test
       - run: npm run check --prefix worker/telemetry
+      - run: npm audit --audit-level=high --prefix worker/telemetry

@@ -53,6 +53,7 @@ import {
 	isTelemetryUploadEnabled,
 	syncPendingTelemetry,
 } from "./telemetry/sync.ts";
+import { EXTENSION_VERSION } from "./version.generated.ts";
 import type { ZaiModel } from "./zai-model.ts";
 
 export { loadZaiConfig, type ZaiConfig } from "./config.ts";
@@ -79,8 +80,7 @@ export {
 	type ZaiHookHandlers,
 	type ZaiSessionState,
 } from "./state.ts";
-
-const EXTENSION_VERSION = "0.3.0";
+export { EXTENSION_VERSION } from "./version.generated.ts";
 
 function clampThinkingForModel(
 	pi: ExtensionAPI,

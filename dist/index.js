@@ -13,13 +13,14 @@ import { dispatchZaiHook, getAttemptTracker, getCacheMetricsStore, getMetricsSto
 import { createMetricsStorage, projectIdForCwd } from "./storage/index.js";
 import { clearZaiStatus, updateZaiTpsStatus } from "./telemetry/status.js";
 import { isTelemetryUploadEnabled, syncPendingTelemetry, } from "./telemetry/sync.js";
+import { EXTENSION_VERSION } from "./version.generated.js";
 export { loadZaiConfig } from "./config.js";
 export { formatPiCredentialSource } from "./credentials.js";
 export { buildPlatformModelCatalog, GLM52_THINKING_LEVEL_MAP, PLATFORM_BASE_URL, } from "./model-catalog.js";
 export { isNativeZaiModel } from "./native-zai.js";
 export { normalizeZaiThinkingPayload } from "./payload-normalizer.js";
 export { createZaiSessionState, dispatchZaiHook, getCacheMetricsStore, getMetricsStorage, getZaiHookHandlers, inferEndpoint, isZaiProvider, resetCacheMetrics, sessionState, setZaiHookHandlers, } from "./state.js";
-const EXTENSION_VERSION = "0.3.0";
+export { EXTENSION_VERSION } from "./version.generated.js";
 function clampThinkingForModel(pi, model) {
     if (!model?.reasoning)
         return;

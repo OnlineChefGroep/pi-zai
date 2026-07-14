@@ -5,7 +5,7 @@ import { validateAggregatePayload } from "./validate.ts";
 const payload: AggregateTelemetryPayload = {
 	schema: 1,
 	day: "2026-07-11",
-	extensionVersion: "0.3.0",
+	extensionVersion: "0.5.0",
 	promptMode: "observe",
 	attempts: 12,
 	errors: 1,

@@ -155,7 +155,7 @@ describe("extension boundary (runtime)", () => {
 
 		const preview = buildAggregateTelemetryPreview(
 			config,
-			"0.3.0",
+			"0.5.0",
 			{
 				provider: "zai",
 				modelId: "glm-5.2",
@@ -166,7 +166,7 @@ describe("extension boundary (runtime)", () => {
 		);
 		const text = formatPrivacyPreview(
 			config,
-			"0.3.0",
+			"0.5.0",
 			{
 				projectId: "local-only",
 				sessionHash: "local-only",
@@ -237,7 +237,7 @@ describe("extension boundary (runtime)", () => {
 		const payload: AggregateTelemetryPayload = {
 			schema: 1,
 			day: "2026-07-12",
-			extensionVersion: "0.3.0",
+			extensionVersion: "0.5.0",
 			promptMode: "observe",
 			attempts: 1,
 			errors: 0,

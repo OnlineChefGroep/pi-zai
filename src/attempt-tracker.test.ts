@@ -51,7 +51,7 @@ describe("AttemptTracker lifecycle", () => {
 			provider: "zai",
 			model: "glm-5.2",
 			endpointKind: "coding",
-			extensionVersion: "0.3.0",
+			extensionVersion: "0.5.0",
 			occurredAt: 1600,
 			toolCallsInTurn: 2,
 			toolErrorsInTurn: 0,
@@ -97,7 +97,7 @@ describe("AttemptTracker lifecycle", () => {
 			provider: "zai",
 			model: "glm-5.2",
 			endpointKind: "coding",
-			extensionVersion: "0.3.0",
+			extensionVersion: "0.5.0",
 			occurredAt: 2000,
 		});
 
@@ -133,7 +133,7 @@ describe("AttemptTracker lifecycle", () => {
 			provider: "zai",
 			model: "glm-5.2",
 			endpointKind: "coding",
-			extensionVersion: "0.3.0",
+			extensionVersion: "0.5.0",
 			occurredAt: 2500,
 		});
 

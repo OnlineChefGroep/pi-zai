@@ -43,6 +43,7 @@ jobs:
             worker/telemetry/package-lock.json
       - run: npm ci --ignore-scripts
       - run: npm ci --ignore-scripts --prefix worker/telemetry
+      - run: npm run check:version
       - run: npm run lint
       - run: npm run build
       - run: npm test
@@ -50,3 +51,46 @@ jobs:
       - run: npm run check:consumer-install
       - run: npm run check --prefix worker/telemetry
       - run: npm audit --audit-level=high --prefix worker/telemetry
+
+  pi-minimum:
+    name: Pi 0.80.7 minimum
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22.x'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Pin Pi packages to 0.80.7
+        run: |
+          npm install --ignore-scripts --save-dev \
+            @earendil-works/pi-agent-core@0.80.7 \
+            @earendil-works/pi-ai@0.80.7 \
+            @earendil-works/pi-coding-agent@0.80.7
+      - run: npm run build
+      - run: npm test
+
+  pi-latest:
+    name: Pi latest compatible
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22.x'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Upgrade Pi packages to latest
+        run: |
+          npm install --ignore-scripts --save-dev \
+            @earendil-works/pi-agent-core@latest \
+            @earendil-works/pi-ai@latest \
+            @earendil-works/pi-coding-agent@latest
+      - run: npm run build
+      - run: npm test

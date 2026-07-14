@@ -1,5 +1,6 @@
 import type { Usage } from "@earendil-works/pi-ai";
-import { calculateCost, type Model } from "@earendil-works/pi-ai/compat";
+import { calculateCost } from "@earendil-works/pi-ai/compat";
+import type { ZaiModel } from "../zai-model.ts";
 import {
 	endpointsShareCache,
 	isCodingPlanProvider,
@@ -124,7 +125,7 @@ export function computeCacheRatios(
 	};
 }
 
-export function estimateUsageCost(model: Model<any>, usage: Usage): number {
+export function estimateUsageCost(model: ZaiModel, usage: Usage): number {
 	const copy = {
 		...usage,
 		cost: { ...usage.cost },
@@ -133,7 +134,7 @@ export function estimateUsageCost(model: Model<any>, usage: Usage): number {
 	return copy.cost.total;
 }
 
-export function estimateCacheSavings(model: Model<any>, usage: Usage): number {
+export function estimateCacheSavings(model: ZaiModel, usage: Usage): number {
 	if (usage.cacheRead <= 0) return 0;
 	const uncached = {
 		...usage,
@@ -152,7 +153,7 @@ export function estimateCacheSavings(model: Model<any>, usage: Usage): number {
 }
 
 export function createUsageSnapshot(
-	model: Model<any>,
+	model: ZaiModel,
 	usage: Usage,
 ): CacheUsageSnapshot {
 	const ratios = computeCacheRatios(usage);
@@ -201,7 +202,7 @@ export class CacheMetricsStore {
 		this.stats = undefined;
 	}
 
-	record(model: Model<any>, usage: Usage): SessionCacheStats | undefined {
+	record(model: ZaiModel, usage: Usage): SessionCacheStats | undefined {
 		if (!this.stats) return undefined;
 		const promptTokens = usage.input + usage.cacheRead + usage.cacheWrite;
 		// Connection failures and local command responses can carry an all-zero

@@ -39,7 +39,7 @@ async function main() {
 	);
 	const report = await runCacheAffinityBenchmark(loaded);
 	const text = formatReport(report);
-	console.log("\n" + text);
+	console.log(`\n${text}`);
 
 	const outPath = process.env.PI_ZAI_AB_OUTPUT;
 	if (outPath) {

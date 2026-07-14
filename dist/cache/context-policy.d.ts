@@ -1,8 +1,8 @@
-import type { Model } from "@earendil-works/pi-ai";
+import type { ZaiModel } from "../zai-model.ts";
 export declare const DYNAMIC_CONTEXT_MARKER = "\n\n--- dynamic context ---\n";
 export declare const DYNAMIC_CONTEXT_MARKERS: readonly ["Current git status", "Current git diff", "Latest test failure", "Current timestamp", "Ephemeral diagnostics", "Context tokens:", "Token count:"];
 export declare function isZaiProvider(provider: string | undefined): boolean;
-export declare function isZaiModel(model: Model<any> | undefined): boolean;
+export declare function isZaiModel(model: ZaiModel | undefined): boolean;
 export declare function isCodingPlanProvider(provider: string): boolean;
 export declare function isPlatformProvider(provider: string): boolean;
 /** Z.AI does not share implicit cache between Coding Plan and Platform endpoints. */

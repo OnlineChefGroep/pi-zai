@@ -6,7 +6,7 @@ import { formatTpsTelemetryLines, formatTurnThroughputLines, } from "../telemetr
 import { formatToolSessionLines } from "../tool-tracker.js";
 import { getCacheMetricsStore } from "./cache-state.js";
 import { formatHeading, formatKeyValue, formatSection, joinCommandLines, } from "./format.js";
-import { describeClearThinking, describePreservedThinking, describeThinkingPayload, formatCredentialSource, formatDollarCost, formatPercent, formatUsageLine, getEndpointLabel, getLastAssistantUsage, getSessionUsageTotals, getZaiCompat, requireZaiModel, } from "./helpers.js";
+import { describeClearThinking, describePreservedThinking, describeThinkingPayload, formatCredentialSource, formatDollarCost, formatPercent, formatTokens, formatUsageLine, getEndpointLabel, getLastAssistantUsage, getSessionUsageTotals, getZaiCompat, requireZaiModel, } from "./helpers.js";
 export function registerZaiStatusCommand(pi, deps) {
     pi.registerCommand("zai", {
         description: "Show Z.AI provider status, thinking, cache, tools, and usage",
@@ -31,6 +31,7 @@ export function registerZaiStatusCommand(pi, deps) {
             const sessionPrompt = sessionTotals.input +
                 sessionTotals.cacheRead +
                 sessionTotals.cacheWrite;
+            const sessionMissed = sessionTotals.input + sessionTotals.cacheWrite;
             const sessionHitRatio = sessionPrompt > 0
                 ? sessionTotals.cacheRead / sessionPrompt
                 : (cacheStats?.rolling.hitRatio ?? 0);
@@ -38,9 +39,11 @@ export function registerZaiStatusCommand(pi, deps) {
                 ? computeCacheRatios(lastUsage).hitRatio
                 : cacheStats?.last?.hitRatio;
             const toolStream = getZaiCompat(model)?.zaiToolStream === true ? "enabled" : "disabled";
-            const sessionCostLabel = model.provider === "zai-platform"
+            const sessionCostLabel = sessionTotals.cost > 0
                 ? formatDollarCost(sessionTotals.cost)
-                : "subscription-managed";
+                : model.provider === "zai-platform"
+                    ? "$0.00"
+                    : "subscription-managed";
             const promptAnalysis = resolvePromptStability(ctx.getSystemPrompt(), sessionState.promptStability);
             const tpsStats = getTpsTracker().get();
             const toolStats = getToolExecutionTracker().get();
@@ -61,7 +64,7 @@ export function registerZaiStatusCommand(pi, deps) {
                 formatKeyValue("Telemetry", config.telemetryMode),
                 formatKeyValue("Affinity", config.sessionAffinity),
                 formatKeyValue("Prompt mode", config.promptStabilityMode),
-                ...formatSection("Last usage", [
+                ...formatSection("Last successful Z.AI usage", [
                     lastUsage ? formatUsageLine(lastUsage) : "none",
                 ]),
                 ...formatSection("Throughput", [
@@ -70,9 +73,10 @@ export function registerZaiStatusCommand(pi, deps) {
                 ]),
                 ...formatSection("Tools", formatToolSessionLines(toolStats)),
                 ...formatSection("Cache", [
-                    `Last request hit ratio: ${lastHitRatio !== undefined ? formatPercent(lastHitRatio) : "n/a"}`,
-                    `Session hit ratio: ${formatPercent(sessionHitRatio)}`,
-                    `Session cost: ${sessionCostLabel}`,
+                    `Last successful request hit ratio: ${lastHitRatio !== undefined ? formatPercent(lastHitRatio) : "n/a"}`,
+                    `Z.AI session prompt: ${formatTokens(sessionPrompt)} (${formatTokens(sessionTotals.cacheRead)} cached, ${formatTokens(sessionMissed)} uncached/write)`,
+                    `Z.AI session hit ratio: ${formatPercent(sessionHitRatio)}`,
+                    `Z.AI session cost: ${sessionCostLabel}`,
                 ]),
                 ...formatSection("Prompt stability", promptAnalysis
                     ? [

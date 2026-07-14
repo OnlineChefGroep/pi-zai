@@ -1,4 +1,4 @@
-import { isCodingPlanProvider, isPlatformProvider, isZaiModel, } from "../cache/context-policy.js";
+import { isCodingPlanProvider, isPlatformProvider, isZaiModel, isZaiProvider, } from "../cache/context-policy.js";
 import { endpointLabel } from "../cache/metrics.js";
 import { formatPiCredentialSource } from "../credentials.js";
 export function getZaiCompat(model) {
@@ -23,27 +23,33 @@ export function describeClearThinking(config, thinkingLevel, model) {
         return "n/a (model has no reasoning)";
     }
     if (thinkingLevel === "off") {
-        return "true (thinking disabled)";
+        return "not sent (thinking disabled)";
     }
-    if (config.preserveThinking) {
-        return "false (preserved thinking enabled)";
+    if (config.preserveThinking === true) {
+        return "false (forced preserved via settings)";
     }
-    return "true (default cost-first)";
+    if (config.preserveThinking === false) {
+        return "true (forced clear via settings)";
+    }
+    return "false (Pi native)";
 }
 export function describePreservedThinking(config) {
-    if (config.preserveThinking) {
-        return "enabled via settings.json";
+    if (config.preserveThinking === true) {
+        return "forced on via settings.json";
     }
-    return "disabled (default; source: settings.json)";
+    if (config.preserveThinking === false) {
+        return "forced off via settings.json";
+    }
+    return "native Pi behavior";
 }
 export function describeThinkingPayload(config, thinkingLevel, model) {
     if (!model?.reasoning) {
         return "thinking disabled (non-reasoning model)";
     }
-    const clearThinking = thinkingLevel !== "off" && config.preserveThinking ? "false" : "true";
     if (thinkingLevel === "off") {
-        return 'type="disabled", clear_thinking=true';
+        return 'type="disabled"';
     }
+    const clearThinking = config.preserveThinking === false ? "true" : "false";
     const mapped = model.thinkingLevelMap?.[thinkingLevel];
     const effort = typeof mapped === "string" ? mapped : thinkingLevel;
     return `type="enabled", reasoning_effort="${effort}", clear_thinking=${clearThinking}`;
@@ -54,7 +60,14 @@ export function getLastAssistantUsage(ctx) {
         if (entry.type !== "message" || entry.message.role !== "assistant")
             continue;
         const assistant = entry.message;
+        if (!isZaiProvider(assistant.provider))
+            continue;
         if (assistant.stopReason === "aborted" || assistant.stopReason === "error")
+            continue;
+        const promptTokens = assistant.usage.input +
+            assistant.usage.cacheRead +
+            assistant.usage.cacheWrite;
+        if (promptTokens <= 0)
             continue;
         return assistant.usage;
     }
@@ -73,7 +86,12 @@ export function getSessionUsageTotals(ctx) {
         if (entry.type !== "message" || entry.message.role !== "assistant")
             continue;
         const assistant = entry.message;
+        if (!isZaiProvider(assistant.provider))
+            continue;
         const usage = assistant.usage;
+        const promptTokens = usage.input + usage.cacheRead + usage.cacheWrite;
+        if (promptTokens <= 0 && usage.output <= 0)
+            continue;
         totals.input += usage.input;
         totals.output += usage.output;
         totals.cacheRead += usage.cacheRead;
@@ -96,8 +114,8 @@ export function formatUsageLine(usage) {
     const promptTotal = usage.input + usage.cacheRead + usage.cacheWrite;
     const hitRatio = promptTotal > 0 ? usage.cacheRead / promptTotal : 0;
     return [
-        `input=${formatTokens(usage.input)}`,
-        `cacheRead=${formatTokens(usage.cacheRead)}`,
+        `uncached=${formatTokens(usage.input)}`,
+        `cached=${formatTokens(usage.cacheRead)}`,
         `cacheWrite=${formatTokens(usage.cacheWrite)}`,
         `output=${formatTokens(usage.output)}`,
         `hit=${formatPercent(hitRatio)}`,

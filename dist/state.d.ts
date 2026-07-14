@@ -1,5 +1,4 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { Model } from "@earendil-works/pi-ai";
 import type { ExtensionContext, SessionStartEvent, TurnEndEvent } from "@earendil-works/pi-coding-agent";
 import { AttemptTracker } from "./attempt-tracker.ts";
 import { CacheMetricsStore } from "./cache/metrics.ts";
@@ -7,9 +6,11 @@ import { QueryCorrelation } from "./correlation.ts";
 import type { MetricsStorage } from "./storage/types.ts";
 import { TpsTracker } from "./telemetry/tps.ts";
 import { ToolExecutionTracker } from "./tool-tracker.ts";
+import type { ZaiModel } from "./zai-model.ts";
 export type ZaiEndpointKind = "coding" | "platform" | "coding-cn" | "unknown";
 export interface ZaiSessionState {
-    preserveThinking: boolean;
+    /** Undefined means Pi's native Z.AI payload is left unchanged. */
+    preserveThinking: boolean | undefined;
     endpoint: ZaiEndpointKind;
     provider: string | undefined;
     modelId: string | undefined;
@@ -33,8 +34,8 @@ export interface ZaiSessionState {
 }
 export interface ModelSelectEvent {
     type: "model_select";
-    model: Model<any>;
-    previousModel: Model<any> | undefined;
+    model: ZaiModel;
+    previousModel: ZaiModel | undefined;
     source: "set" | "cycle" | "restore";
 }
 export interface ZaiHookHandlers {

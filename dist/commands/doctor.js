@@ -4,7 +4,13 @@ import { fingerprintToolset } from "../cache/fingerprint.js";
 import { formatProbeSummary, formatRecommendedRetrySettingsJson, formatRetrySettingsAdvice, probeChatEndpoint, readPiRetrySettings, } from "../resilience.js";
 import { inferEndpoint, sessionState } from "../state.js";
 import { describeThinkingPayload, formatCredentialSource, getZaiCompat, requireZaiModel, } from "./helpers.js";
-const DOCTOR_THINKING_LEVELS = ["off", "high", "max"];
+const DOCTOR_THINKING_LEVELS = [
+    "off",
+    "low",
+    "medium",
+    "high",
+    "max",
+];
 function statusIcon(status) {
     switch (status) {
         case "pass":
@@ -27,10 +33,9 @@ function glm52ThinkingMapOk(model) {
         return false;
     const map = model.thinkingLevelMap;
     return (map.minimal === null &&
-        map.low === null &&
-        map.medium === null &&
+        map.low === "high" &&
+        map.medium === "high" &&
         map.high === "high" &&
-        map.xhigh === "max" &&
         map.max === "max");
 }
 function hasPlatformPricing(model) {
@@ -170,7 +175,7 @@ export function registerZaiDoctorCommand(pi, deps) {
                     name: "GLM-5.2 thinkingLevelMap",
                     status: glm52ThinkingMapOk(thinkingModel) ? "pass" : "warn",
                     detail: glm52ThinkingMapOk(thinkingModel)
-                        ? "off/high/xhigh exposed; xhigh maps to Z.AI `max`"
+                        ? "minimal hidden; low/medium/high map to Z.AI `high`; max maps to `max`"
                         : "Unexpected thinkingLevelMap on active or default model",
                 });
             }
@@ -189,11 +194,13 @@ export function registerZaiDoctorCommand(pi, deps) {
                 });
             }
             checks.push({
-                name: "clear_thinking default",
-                status: config.preserveThinking ? "warn" : "pass",
-                detail: config.preserveThinking
-                    ? "preserveThinking enabled; clear_thinking=false when thinking is on"
-                    : "preserveThinking disabled; clear_thinking=true when thinking is on (cost-first)",
+                name: "Preserved thinking policy",
+                status: config.preserveThinking === false ? "warn" : "pass",
+                detail: config.preserveThinking === undefined
+                    ? "No override: Pi native payload is preserved (currently clear_thinking=false while thinking is enabled)"
+                    : config.preserveThinking
+                        ? "Explicit override keeps clear_thinking=false"
+                        : "Explicit override forces clear_thinking=true; this can reduce reasoning continuity and cache reuse in coding sessions",
             });
             checks.push({
                 name: "Tool streaming",
@@ -250,7 +257,7 @@ export function registerZaiDoctorCommand(pi, deps) {
                 name: "Compaction policy",
                 status: compactionOk ? "pass" : "fail",
                 detail: compactionOk
-                    ? "Deterministic sections; hidden reasoning dropped by default"
+                    ? "Deterministic sections; compaction instructed not to replay hidden reasoning"
                     : "Compaction template missing required sections",
             });
             if (credentialConfigured && thinkingModel) {

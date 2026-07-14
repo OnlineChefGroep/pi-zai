@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Model } from "@earendil-works/pi-ai";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { inferEndpoint, type ZaiEndpointKind } from "./state.ts";
+import type { ZaiModel } from "./zai-model.ts";
 
 const CONNECTION_ERROR_PATTERN =
 	/connection.?error|connection.?refused|connection.?lost|fetch failed|network.?error|recv failure|reset before headers|socket hang up|timed? out|timeout|terminated|upstream.?connect/i;
@@ -93,7 +93,7 @@ export function formatRecommendedRetrySettingsJson(): string {
 	);
 }
 
-export function formatConnectionErrorHint(model: Model<any>): string {
+export function formatConnectionErrorHint(model: ZaiModel): string {
 	const endpoint = inferEndpoint(model.provider, model.baseUrl);
 	const alternate = endpoint === "platform" ? "coding" : "platform";
 	const retry = readPiRetrySettings();

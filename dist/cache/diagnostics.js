@@ -21,9 +21,7 @@ function formatTimestamp(epochMs) {
 function segmentLines(stats) {
     const { segment, last, rolling } = stats;
     const promptTokens = rolling.input + rolling.cacheRead + rolling.cacheWrite;
-    const lastRatios = last
-        ? { hitRatio: last.hitRatio, missRatio: last.missRatio }
-        : computeCacheRatios(rolling);
+    const segmentRatios = computeCacheRatios(rolling);
     return [
         "Current segment",
         `  Provider: ${segment.provider}`,
@@ -32,27 +30,27 @@ function segmentLines(stats) {
         `  Stable-prefix fingerprint: ${segment.systemFingerprint}`,
         `  Toolset fingerprint: ${segment.toolsetFingerprint}`,
         "",
-        "Prompt tokens (session)",
-        `  Uncached (input): ${formatTokens(rolling.input)}`,
-        `  Cached (cacheRead): ${formatTokens(rolling.cacheRead)}`,
+        "Prompt tokens (current segment)",
+        `  Uncached input: ${formatTokens(rolling.input)}`,
+        `  Cached input: ${formatTokens(rolling.cacheRead)}`,
         `  Cache write: ${formatTokens(rolling.cacheWrite)}`,
         `  Total prompt: ${formatTokens(promptTokens)}`,
         `  Output: ${formatTokens(rolling.output)}`,
         "",
         "Cache ratios",
-        `  Last request hit ratio: ${last ? formatPercent(last.hitRatio) : "n/a"}`,
-        `  Session hit ratio: ${formatPercent(rolling.hitRatio)}`,
-        `  Session miss ratio: ${formatPercent(lastRatios.missRatio)}`,
+        `  Last successful request hit ratio: ${last ? formatPercent(last.hitRatio) : "n/a"}`,
+        `  Segment hit ratio: ${formatPercent(segmentRatios.hitRatio)}`,
+        `  Segment miss ratio: ${formatPercent(segmentRatios.missRatio)}`,
         "",
         "Cost",
-        `  Estimated session cost: ${formatCost(rolling.estimatedCost, segment.endpoint === "platform")}`,
-        `  Estimated cache savings: ${formatCost(rolling.estimatedSavings, segment.endpoint === "platform")}`,
+        `  Estimated segment cost: ${formatCost(rolling.estimatedCost, segment.endpoint === "platform")}`,
+        `  Estimated segment cache savings: ${formatCost(rolling.estimatedSavings, segment.endpoint === "platform")}`,
         "",
         "Boundaries",
-        `  Last prefix change reason: ${stats.lastPrefixChangeReason ?? "none"}`,
+        `  Segment start reason: ${stats.lastPrefixChangeReason ?? "none"}`,
         `  Last compaction: ${formatTimestamp(stats.lastCompactionAt)}`,
         `  Segment started: ${formatTimestamp(stats.segmentStartedAt)}`,
-        `  Requests in segment: ${rolling.requests}`,
+        `  Successful provider requests in segment: ${rolling.requests}`,
         "",
         "Recommendations",
         ...formatCacheRecommendations(stats),
@@ -75,22 +73,25 @@ export function formatCacheDiagnostics(input, action = "status") {
             "Pi native usage mapping",
             "  uncached input = usage.input",
             "  cached input = usage.cacheRead",
+            "  cache writes = usage.cacheWrite",
             "  total prompt = input + cacheRead + cacheWrite",
+            "  miss ratio = (input + cacheWrite) / total prompt",
             "",
-            "Segment boundaries reset metrics when any of these change:",
+            "Segment boundaries reset these diagnostics when any of these change:",
             "  provider, endpoint, model, system fingerprint, toolset fingerprint, session",
+            "",
+            "The segment view is intentionally narrower than Pi's full Session Info.",
+            "It does not combine earlier models, providers, extension reloads, or segments.",
             "",
             "Cross-model rule: cache is not assumed to transfer between coding and platform endpoints,",
             "different models, different system prompts, or different toolsets.",
-            "",
-            "Compaction drops hidden reasoning by default while preserving visible decisions and tool outcomes.",
         ].join("\n");
     }
     if (!input.stats || input.stats.rolling.requests === 0) {
         return [
             "Z.AI cache diagnostics",
             "",
-            "No cache metrics recorded yet for this session.",
+            "No successful provider cache samples recorded for the current segment.",
             "Send a Z.AI request to begin tracking.",
         ].join("\n");
     }

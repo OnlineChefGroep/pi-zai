@@ -1,4 +1,4 @@
-import type { Model } from "@earendil-works/pi-ai";
+import type { ZaiModel } from "../zai-model.ts";
 import { canonicalizeStablePrefix } from "./fingerprint.ts";
 
 const ZAI_PROVIDERS = new Set(["zai", "zai-coding-cn", "zai-platform"]);
@@ -23,7 +23,7 @@ export function isZaiProvider(provider: string | undefined): boolean {
 	return provider !== undefined && ZAI_PROVIDERS.has(provider);
 }
 
-export function isZaiModel(model: Model<any> | undefined): boolean {
+export function isZaiModel(model: ZaiModel | undefined): boolean {
 	return model !== undefined && isZaiProvider(model.provider);
 }
 

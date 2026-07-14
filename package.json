@@ -1,7 +1,7 @@
 {
 	"name": "@onlinechefgroep/pi-zai",
-	"version": "0.3.0",
-	"description": "Production-grade Z.AI integration, cache optimizer, and Platform API provider for Pi",
+	"version": "0.3.1",
+	"description": "Z.AI cache visibility, native request diagnostics, and local operator metrics for Pi",
 	"type": "module",
 	"license": "MIT",
 	"author": "Online Chef Groep",

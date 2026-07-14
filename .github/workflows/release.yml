@@ -60,6 +60,8 @@ jobs:
       - if: steps.registry.outputs.published != 'true'
         run: npm run check:package
       - if: steps.registry.outputs.published != 'true'
+        run: npm run check:consumer-install
+      - if: steps.registry.outputs.published != 'true'
         run: npm run check --prefix worker/telemetry
       - name: Publish package
         if: steps.registry.outputs.published != 'true'

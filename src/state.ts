@@ -16,7 +16,8 @@ import { ToolExecutionTracker } from "./tool-tracker.ts";
 export type ZaiEndpointKind = "coding" | "platform" | "coding-cn" | "unknown";
 
 export interface ZaiSessionState {
-	preserveThinking: boolean;
+	/** Undefined means Pi's native Z.AI payload is left unchanged. */
+	preserveThinking: boolean | undefined;
 	endpoint: ZaiEndpointKind;
 	provider: string | undefined;
 	modelId: string | undefined;
@@ -84,7 +85,7 @@ export function newSessionAffinityId(): string {
 }
 
 export function createZaiSessionState(
-	preserveThinking = false,
+	preserveThinking?: boolean,
 ): ZaiSessionState {
 	return {
 		preserveThinking,

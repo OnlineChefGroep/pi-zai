@@ -1,76 +1,124 @@
-# @onlinechefgroep/pi-zai
+<p align="center">
+  <img src="docs/images/pi-zai-hero.svg" alt="pi-zai: native Z.AI controls, cache visibility, and local diagnostics for Pi" width="100%" />
+</p>
 
-**Z.AI for Pi** — cache intelligence, cost-first thinking, local operator metrics, and production diagnostics on top of Pi's native Z.AI providers.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@onlinechefgroep/pi-zai"><img src="https://img.shields.io/npm/v/@onlinechefgroep/pi-zai?style=flat-square&label=npm" alt="npm version" /></a>
+  <img src="https://img.shields.io/badge/Pi-%E2%89%A50.80.0-24292f?style=flat-square" alt="Pi 0.80.0 or newer" />
+  <img src="https://img.shields.io/badge/Node-%E2%89%A522.19-24292f?style=flat-square" alt="Node 22.19 or newer" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-24292f?style=flat-square" alt="MIT license" /></a>
+</p>
 
-Works with Pi **>= 0.80.0**. Current version: **0.3.0**.
+# pi-zai
 
-## Why pi-zai
+A Pi extension for running Z.AI with visible cache behavior, native thinking controls, and local operator diagnostics.
 
-- **See your cache** — implicit prefix reuse, segment fingerprints, low-hit recommendations ([Z.AI caching](https://docs.z.ai/guides/capabilities/cache.md)).
-- **Spend less by default** — `clear_thinking=true`, no historical reasoning replay unless you opt in.
-- **Operate with confidence** — `/zai-doctor`, quota via `/zai-usage`, connection hints, local latency summaries.
-- **Privacy-first metrics** — SQLite on your machine; **opt-in** remote aggregates only when you enable them.
+Pi already owns the agent loop, tools, sessions, streaming, and Z.AI provider. **pi-zai hooks into that existing path.** It does not proxy chat traffic, replace Pi's runtime, or create a second model client.
 
-pi-zai **extends** Pi's native `zai` / `zai-coding-cn` path. It does not replace Pi's runtime, streaming, or thinking controls.
-
-## Quick start
+## Install
 
 ```bash
 pi install npm:@onlinechefgroep/pi-zai
+```
+
+Reload Pi, select a Z.AI model, and open the status view:
+
+```text
 /reload
-```
-
-Set credentials the Pi way (`/login`, `auth.json`, `models.json`, or `ZAI_API_KEY`), select a Z.AI model, then:
-
-```text
 /zai
-/zai-doctor
-/zai-cache status
-/zai-privacy preview
 ```
 
-[Full getting started guide](docs/getting-started.md)
+Credentials stay in Pi's normal credential flow: `/login`, `auth.json`, `models.json`, or `ZAI_API_KEY`.
 
-## What you get
+[Getting started →](docs/getting-started.md)
 
-| Area | What pi-zai adds |
-|------|------------------|
-| **Cache** | Segment fingerprints, hit ratio, compaction policy, optional `X-Session-Id` affinity |
-| **Thinking** | Maps Pi `off` / `high` / `max` → Z.AI payload via hooks (GLM-5.2) |
-| **Quota & cost** | Coding Plan monitor + Platform cost estimates in `/zai-usage` |
-| **Resilience** | Doctor probes, retry guidance, connection-error hints |
-| **Local metrics** | Token/latency/error records in SQLite (`/zai-data`, `/zai-transport`) |
-| **Benchmarks** | A0–A3 manifest + `/zai-benchmark` run tracking |
-| **Platform API** | Catalog helpers — register `zai-platform` in `models.json` yourself |
+## What changes when the extension is loaded
 
-## Privacy promise (v0.3.0)
+<p align="center">
+  <img src="docs/images/pi-zai-without-with.svg" alt="Comparison of native Pi with Z.AI and Pi with the pi-zai extension" width="100%" />
+</p>
 
-| Data path | Status |
-|-----------|--------|
-| Z.AI API (chat) | Normal Pi provider traffic when you use Z.AI |
-| Local metrics | On by default — counts & hashes only, **no prompts/code** |
-| Remote telemetry | **Off by default** — opt-in daily anonymous aggregates |
+| Area | Native Pi + Z.AI | With pi-zai |
+|---|---|---|
+| Agent runtime | Pi | Still Pi |
+| Provider and streaming | Pi's native Z.AI provider | Still Pi's native provider |
+| Thinking UI | Pi `off` / `high` / `max` | Mapped to the Z.AI request payload |
+| Cache visibility | Usage fields are available internally | Hit ratios, segment fingerprints, and recommendations |
+| Diagnostics | General provider errors | `/zai-doctor`, transport summaries, retry guidance |
+| Usage | Per-response usage | Session totals, Coding Plan quota, Platform estimates |
+| History | Session-scoped | Privacy-reduced local SQLite metrics |
+
+## Operator commands
+
+| Command | Purpose |
+|---|---|
+| `/zai` | Provider, endpoint, model, thinking payload, cache, throughput, tools, and session usage |
+| `/zai-cache` | Cache hit ratios, prompt segments, fingerprints, and recommendations |
+| `/zai-usage` | Session token totals, Coding Plan quota, or Platform cost estimates |
+| `/zai-doctor` | Integration checks and optional connectivity/stability probes |
+| `/zai-transport` | Local latency and controlled error-category summaries |
+| `/zai-data` | Inspect, export, vacuum, or wipe local metrics |
+| `/zai-privacy preview` | Show exactly what is stored locally and what could be aggregated |
+| `/zai-benchmark` | Track A0–A3 cache-strategy experiments |
+
+[Full command reference →](docs/commands.md)
+
+## Native thinking, explicit request behavior
+
+pi-zai uses Pi's own thinking selector. There is no second `/zai-thinking` state to keep in sync.
+
+For GLM-5.2, Pi's visible levels are translated in `before_provider_request`:
 
 ```text
-/zai-privacy preview    # allowlist + aggregate preview (not sent until enabled)
-/zai-telemetry status   # mode, consent, pending upload days
-/zai-data status        # local SQLite row counts
-/zai-data clear-all     # wipe metrics + rotate local project secret
+Pi off   → thinking disabled
+Pi high  → thinking enabled, reasoning_effort high
+Pi max   → thinking enabled, reasoning_effort max
 ```
 
-Details: [Security & privacy](docs/security.md) · [Architecture](docs/architecture.md)
+Historical reasoning is not replayed by default: `clear_thinking=true`. Preserving earlier reasoning remains an explicit advanced opt-in.
 
-## Endpoints
+[Thinking details →](docs/thinking.md)
 
-| Provider | URL | Billing |
-|----------|-----|---------|
-| `zai` | `api.z.ai/.../coding/paas/v4` | Coding Plan |
-| `zai-coding-cn` | `open.bigmodel.cn/.../coding/paas/v4` | Coding Plan (CN) |
-| `zai-platform` | `api.z.ai/.../paas/v4` | Metered |
+## Architecture
 
-Switch: `/zai-endpoint coding|platform` or Pi model picker.
+<p align="center">
+  <img src="docs/images/pi-zai-architecture.svg" alt="Architecture showing pi-zai hooks around Pi's native Z.AI provider and local SQLite metrics" width="100%" />
+</p>
 
-## Configuration (essentials)
+The chat request still follows the normal Pi route:
+
+```text
+You → Pi agent runtime → Pi native Z.AI provider → Z.AI API
+```
+
+pi-zai adds lifecycle hooks for request shaping, cache analysis, headers, diagnostics, and local metrics. It does not upload prompts or completions through a separate service.
+
+[Architecture →](docs/architecture.md)
+
+## Local by default
+
+Local metrics are enabled by default and stored under Pi's user directory:
+
+```text
+~/.pi/agent/state/pi-zai/metrics.sqlite3
+~/.pi/agent/state/pi-zai/local.secret
+```
+
+Stored fields are limited to operational data such as token counts, latency, HTTP status, controlled error categories, local hashes, and short fingerprints. **Prompt text, source code, tool arguments, tool results, and raw error bodies are not stored.**
+
+Retention is bounded and the data can be removed from Pi:
+
+```text
+/zai-data clear-project
+/zai-data clear-details
+/zai-data clear-all
+```
+
+Anonymous aggregate telemetry exists as an opt-in path and is off by default. It requires both configuration and explicit consent.
+
+[Security and privacy →](docs/security.md)
+
+## Essential configuration
 
 ```json
 {
@@ -84,41 +132,49 @@ Switch: `/zai-endpoint coding|platform` or Pi model picker.
 }
 ```
 
-| Setting | Default | Notes |
-|---------|---------|-------|
-| `metrics.mode` | `local` | `off` / `memory` / `local` SQLite |
-| `telemetry.mode` | `off` | `aggregate` enables uploads after `/zai-telemetry enable` |
-| `sessionAffinity` | `off` | `experimental` → `X-Session-Id` header |
-| `promptStability.mode` | `observe` | `safe` normalizes below dynamic marker |
+| Setting | Default | Meaning |
+|---|---:|---|
+| `preserveThinking` | `false` | Keep `clear_thinking=true` unless explicitly changed |
+| `metrics.mode` | `local` | `off`, in-memory, or bounded SQLite storage |
+| `promptStability.mode` | `observe` | Measure stable and volatile prompt sections without rewriting |
+| `sessionAffinity` | `off` | Experimental `X-Session-Id` support when enabled |
+| `telemetry.mode` | `off` | No remote aggregate uploads |
 
-[Full configuration](docs/configuration.md)
+[Configuration reference →](docs/configuration.md)
+
+## Endpoints
+
+| Provider | Route | Billing |
+|---|---|---|
+| `zai` | `api.z.ai/.../coding/paas/v4` | Coding Plan |
+| `zai-coding-cn` | `open.bigmodel.cn/.../coding/paas/v4` | Coding Plan (China) |
+| `zai-platform` | `api.z.ai/.../paas/v4` | Metered Platform API |
+
+pi-zai does not override Pi's built-in `zai` or `zai-coding-cn` providers. Register `zai-platform` in `models.json` only when you need the metered endpoint.
 
 ## Documentation
 
-| Guide | Topic |
-|-------|-------|
-| [Getting started](docs/getting-started.md) | Install, credentials, first session |
-| [Architecture](docs/architecture.md) | How pi-zai fits Pi, data paths, telemetry readiness |
-| [Security](docs/security.md) | Allowlists, wipe commands, remote boundary |
-| [Cache optimization](docs/cache-optimization.md) | Hit ratio, fingerprints, recommendations |
-| [Thinking](docs/thinking.md) | Native levels, preserve opt-in |
-| [Commands](docs/commands.md) | All slash commands |
-| [Configuration](docs/configuration.md) | Settings reference |
-| [Troubleshooting](docs/troubleshooting.md) | Connection, cache, auth issues |
-| [Development](docs/development.md) | Build, test, benchmark scripts |
-
-## Is remote telemetry ready?
-
-**Yes, opt-in.** v0.3.0 ships the client uploader, `/zai-telemetry`, and a Cloudflare Worker scaffold. Default is off. Enable with `zai.telemetry.mode: aggregate` + `/zai-telemetry enable`. Production ingest requires deploying `worker/telemetry/` and binding the route on `api.chefgroep.online`. See [Architecture](docs/architecture.md#3-remote-telemetry-opt-in-v030).
+- [Getting started](docs/getting-started.md)
+- [Architecture](docs/architecture.md)
+- [Cache optimization](docs/cache-optimization.md)
+- [Thinking](docs/thinking.md)
+- [Commands](docs/commands.md)
+- [Configuration](docs/configuration.md)
+- [Security and privacy](docs/security.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Development](docs/development.md)
 
 ## Development
 
 ```bash
-cd packages/pi-zai && npm run build && npm test
+npm install
+npm run build
+npm test
+npm run lint
 ```
 
-[Development guide](docs/development.md) · Peer: `@earendil-works/pi-coding-agent >= 0.80.0`
+The extension targets Pi `>= 0.80.0` and Node.js `>= 22.19.0`.
 
 ## License
 
-MIT — [LICENSE](LICENSE)
+MIT — see [LICENSE](LICENSE).

@@ -78,6 +78,8 @@ export function createAdaptiveToolsSessionPolicy(
 				else next.delete(name);
 			}
 			setActiveToolsIfChanged(next);
+		} catch {
+			// Fail open: restoration must never block model switches or shutdown.
 		} finally {
 			clearRuntimeState();
 		}

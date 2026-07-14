@@ -46,6 +46,18 @@ chmod 600 ~/.config/zai/credentials.env
 
 Never commit credential files. Rotate keys exposed in chat, logs, screenshots, or shell history.
 
+### Secret scanning
+
+GitHub secret scanning flags OAuth client IDs and secrets even when they originate from upstream tools (for example pi-mono Gemini CLI / Antigravity embedded credentials). pi-zai **must not** copy those into docs or source.
+
+Before pushing:
+
+```bash
+bash scripts/check-secrets.sh
+```
+
+CI runs Gitleaks on the working tree plus the same pattern guard. Historical alerts on orphaned commits can be resolved as false positives once `main` is clean — they are not org-owned secrets.
+
 ## Local metrics storage
 
 Default: `zai.metrics.mode: "local"`. Z.AI attempts can be recorded locally as privacy-reduced rows.

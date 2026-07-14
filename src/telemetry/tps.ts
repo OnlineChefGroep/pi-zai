@@ -81,14 +81,16 @@ export function formatTpsTelemetryLines(stats: TpsStats | undefined): string[] {
 
 	const { last, rolling } = stats;
 	const lines = [
-		`  Last: ${formatTps(last.tps)} tok/s (${formatDurationMs(last.durationMs)}, ${last.outputTokens.toLocaleString("en-US")} out)`,
+		`  Last stream: ${formatTps(last.tps)} output tok/s (${formatDurationMs(last.durationMs)} stream wall, ${last.outputTokens.toLocaleString("en-US")} output)`,
 	];
 	if (last.ttftMs !== undefined) {
-		lines.push(`  TTFT: ${formatDurationMs(last.ttftMs)}`);
+		lines.push(
+			`  First content delta after stream start: ${formatDurationMs(last.ttftMs)}`,
+		);
 	}
 	if (rolling.requests > 0) {
 		lines.push(
-			`  Session avg: ${formatTps(rolling.avgTps)} tok/s (${rolling.requests} ${rolling.requests === 1 ? "request" : "requests"})`,
+			`  Session stream avg: ${formatTps(rolling.avgTps)} output tok/s (${rolling.requests} ${rolling.requests === 1 ? "assistant stream" : "assistant streams"})`,
 		);
 	}
 	return lines;
@@ -103,7 +105,7 @@ export function formatTurnThroughputLines(
 	const { last } = turn;
 	const lines = [
 		`  Turn: ${formatTps(last.effectiveTps)} tok/s effective (${formatDurationMs(last.wallMs)} wall, ${last.outputTokens.toLocaleString("en-US")} out)`,
-		`  Generation: ${formatTps(last.generationTps)} tok/s (${formatDurationMs(last.generationMs)})`,
+		`  Assistant streams: ${formatTps(last.generationTps)} output tok/s (${formatDurationMs(last.generationMs)} stream wall)`,
 	];
 	if (last.toolCalls > 0) {
 		lines.push(

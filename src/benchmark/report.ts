@@ -26,12 +26,7 @@ export type BenchmarkReportInput = {
 export function buildBenchmarkRunReport(
 	input: BenchmarkReportInput,
 ): BenchmarkRunReport {
-	const rolling = input.cache?.rolling;
-	const cacheHitRatio =
-		rolling && rolling.input + rolling.cacheRead + rolling.cacheWrite > 0
-			? rolling.cacheRead /
-				(rolling.input + rolling.cacheRead + rolling.cacheWrite)
-			: input.usage.cacheHitRatio;
+	const cacheHitRatio = input.usage.cacheHitRatio;
 
 	return {
 		schema: 1,
@@ -41,9 +36,9 @@ export function buildBenchmarkRunReport(
 		usage: input.usage,
 		transport: input.transport,
 		cache: {
-			requestsInSegment: rolling?.requests ?? 0,
+			requestsInSegment: input.usage.attempts,
 			cacheHitRatio,
-			segmentChanges: input.cache?.lastPrefixChangeReason ? 1 : 0,
+			segmentChanges: 0,
 		},
 		gates: evaluateRunGates(
 			input.manifest.variant,
@@ -73,7 +68,7 @@ export function evaluateRunGates(
 		},
 		{
 			id: "sessions-per-variant",
-			label: `Completed runs for ${variant}`,
+			label: `Completed runs for ${variant}/${scenario}`,
 			required: BENCHMARK_SAMPLE_GATES.sessionsPerVariantScenario,
 			actual: completedRunsForVariant,
 			passed:
@@ -118,17 +113,18 @@ export function formatBenchmarkGatesSummary(
 		return "No completed benchmark runs yet. Use /zai-benchmark start then complete after your scenario.";
 	}
 
-	const byVariant = new Map<BenchmarkVariantId, number>();
+	const byVariantScenario = new Map<string, number>();
 	for (const run of completed) {
-		byVariant.set(run.variant, (byVariant.get(run.variant) ?? 0) + 1);
+		const key = `${run.variant}/${run.scenario}`;
+		byVariantScenario.set(key, (byVariantScenario.get(key) ?? 0) + 1);
 	}
 
 	const lines = [
 		"pi-zai benchmark gate summary",
 		"",
-		"Completed runs by variant:",
-		...Array.from(byVariant.entries()).map(
-			([variant, count]) => `  ${variant}: ${count}`,
+		"Completed runs by variant/scenario:",
+		...Array.from(byVariantScenario.entries()).map(
+			([key, count]) => `  ${key}: ${count}`,
 		),
 		"",
 		"Targets:",
@@ -137,13 +133,22 @@ export function formatBenchmarkGatesSummary(
 		`  ${Math.round(BENCHMARK_SAMPLE_GATES.medianGapForAffinity * 100)}pp median cache-hit gap for affinity winner`,
 	];
 
-	const affinityRuns = completed.filter((run) => run.variant === "A3");
-	const baselineRuns = completed.filter((run) => run.variant === "A1");
-	if (affinityRuns.length > 0 && baselineRuns.length > 0) {
-		const median = (values: number[]): number => {
-			const sorted = [...values].sort((left, right) => left - right);
-			return sorted[Math.floor(sorted.length / 2)] ?? 0;
-		};
+	const median = (values: number[]): number => {
+		const sorted = [...values].sort((left, right) => left - right);
+		if (sorted.length === 0) return 0;
+		const middle = Math.floor(sorted.length / 2);
+		if (sorted.length % 2 === 1) return sorted[middle] ?? 0;
+		return ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
+	};
+	const scenarios = new Set(completed.map((run) => run.scenario));
+	for (const scenario of scenarios) {
+		const affinityRuns = completed.filter(
+			(run) => run.variant === "A3" && run.scenario === scenario,
+		);
+		const baselineRuns = completed.filter(
+			(run) => run.variant === "A1" && run.scenario === scenario,
+		);
+		if (affinityRuns.length === 0 || baselineRuns.length === 0) continue;
 		const a3Median = median(
 			affinityRuns.map((run) => run.report!.cache.cacheHitRatio),
 		);
@@ -153,7 +158,7 @@ export function formatBenchmarkGatesSummary(
 		const gapPp = Math.round((a3Median - a1Median) * 100);
 		lines.push(
 			"",
-			`A3 vs A1 median cache-hit gap: ${gapPp}pp (need ${Math.round(BENCHMARK_SAMPLE_GATES.medianGapForAffinity * 100)}pp)`,
+			`A3 vs A1 median cache-hit gap (${scenario}): ${gapPp}pp (need ${Math.round(BENCHMARK_SAMPLE_GATES.medianGapForAffinity * 100)}pp)`,
 		);
 	}
 

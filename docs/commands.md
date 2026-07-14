@@ -12,7 +12,7 @@ Status dashboard for the active Z.AI model:
 - tool-streaming compatibility flag
 - credential source name, never the key value
 - latest successful Z.AI provider usage
-- output and turn throughput
+- assistant stream-wall throughput (output tok/s), first content delta after stream start, and turn-effective throughput
 - tool executions for the current process session: counts and durations only
 - Z.AI-provider session totals and cache-hit ratio
 - prompt-stability counts and fingerprint
@@ -125,7 +125,7 @@ Opt-in anonymous daily aggregate uploads. Requires `zai.telemetry.mode: aggregat
 
 ## `/zai-benchmark [action]`
 
-A0–A3 cache benchmark manifest and local run tracking.
+A0–A3 cache benchmark harness and local run tracking. Reports use persisted attempts after run start; completion must happen in the same Pi session and provider/model.
 
 | Action | Description |
 |--------|-------------|

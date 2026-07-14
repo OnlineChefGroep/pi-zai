@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { computeTps, formatTpsStatusLine, TpsTracker } from "./tps.ts";
+import {
+	computeTps,
+	formatTpsStatusLine,
+	formatTpsTelemetryLines,
+	formatTurnThroughputLines,
+	TpsTracker,
+} from "./tps.ts";
 
 describe("computeTps", () => {
 	it("returns tokens per second for valid samples", () => {
@@ -95,6 +101,28 @@ describe("formatTpsStatusLine", () => {
 				true,
 			),
 		).toBe("50 tok/s (avg 75)");
+	});
+});
+
+describe("operator labels", () => {
+	it("describes message timings as stream-wall metrics", () => {
+		const tracker = new TpsTracker();
+		tracker.beginTurn(0);
+		tracker.beginAssistantMessage(100);
+		tracker.markFirstToken(250);
+		tracker.completeAssistantMessage({ output: 100, reasoning: 0 }, 1_100);
+		tracker.completeTurn({ toolMs: 0, toolCalls: 0, endedAt: 1_200 });
+
+		const throughput = tracker.get();
+		expect(formatTpsTelemetryLines(throughput).join("\n")).toContain(
+			"First content delta after stream start",
+		);
+		expect(formatTpsTelemetryLines(throughput).join("\n")).not.toContain(
+			"TTFT",
+		);
+		expect(formatTurnThroughputLines(throughput.turn).join("\n")).toContain(
+			"Assistant streams",
+		);
 	});
 });
 

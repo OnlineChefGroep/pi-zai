@@ -31,4 +31,5 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test
+      - run: npm run check:package
       - run: npm run check --prefix worker/telemetry

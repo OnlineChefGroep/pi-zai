@@ -5,6 +5,13 @@ type ZaiThinkingPayload = {
 	clear_thinking?: boolean;
 };
 
+/**
+ * Apply only an explicit user override.
+ *
+ * When preserveThinking is undefined, Pi's native Z.AI payload is returned
+ * unchanged. Current Pi releases send clear_thinking=false whenever Z.AI
+ * thinking is enabled, which preserves interleaved reasoning across tool turns.
+ */
 export function normalizeZaiThinkingPayload(
 	payload: unknown,
 	config: ZaiConfig,
@@ -19,23 +26,17 @@ export function normalizeZaiThinkingPayload(
 		return undefined;
 	}
 
-	if (thinking.type === "enabled") {
-		const clearThinking = !config.preserveThinking;
-		if (thinking.clear_thinking === clearThinking) {
-			return undefined;
-		}
-		return {
-			...record,
-			thinking: { ...thinking, clear_thinking: clearThinking },
-		};
+	if (thinking.type !== "enabled" || config.preserveThinking === undefined) {
+		return undefined;
 	}
 
-	if (thinking.type === "disabled" && thinking.clear_thinking !== true) {
-		return {
-			...record,
-			thinking: { ...thinking, clear_thinking: true },
-		};
+	const clearThinking = !config.preserveThinking;
+	if (thinking.clear_thinking === clearThinking) {
+		return undefined;
 	}
 
-	return undefined;
+	return {
+		...record,
+		thinking: { ...thinking, clear_thinking: clearThinking },
+	};
 }

@@ -2,7 +2,7 @@
 
 Z.AI uses **implicit context caching**: repeated prompt prefixes are recognized automatically. There are no manual cache breakpoints, `cache_control` markers, or `prompt_cache_key` fields for Z.AI.
 
-Official reference: [Z.AI Context Caching](https://docs.z.ai/guides/capabilities/cache.md)
+Official reference: [Z.AI Context Caching](https://docs.z.ai/guides/capabilities/cache)
 
 ## How Pi maps usage
 
@@ -10,7 +10,7 @@ Official reference: [Z.AI Context Caching](https://docs.z.ai/guides/capabilities
 |----------|----------------|
 | `usage.input` | Uncached prompt tokens |
 | `usage.cacheRead` | Cached prompt tokens (`prompt_tokens_details.cached_tokens`) |
-| `usage.cacheWrite` | Cache write tokens (when reported) |
+| `usage.cacheWrite` | Cache-write tokens when a provider reports them |
 
 Hit ratio:
 
@@ -18,44 +18,39 @@ Hit ratio:
 cacheRead / (input + cacheRead + cacheWrite)
 ```
 
-Miss ratio:
+Non-hit ratio:
 
 ```text
-input / (input + cacheRead + cacheWrite)
+(input + cacheWrite) / (input + cacheRead + cacheWrite)
 ```
 
-## What this extension tracks
+Pi's Session Info labels the combined prompt total as **Input**, then splits it into **Cached** and **Uncached**. pi-zai command output uses `Cached input`, `Uncached input`, and `Cache write` explicitly to avoid treating `usage.input` as the total prompt size.
 
-Each Z.AI request updates a **cache segment** keyed by:
+## Full session versus current segment
+
+`/zai` scans Pi's session entries and reports totals for Z.AI providers only. These totals can span model changes and multiple cache segments.
+
+`/zai-cache` deliberately reports the **current segment** only. A segment is keyed by:
 
 - provider
-- endpoint (coding / platform / coding-cn)
+- endpoint (`coding`, `platform`, or `coding-cn`)
 - model id
 - stable system-prompt fingerprint
 - toolset fingerprint
 
-Metrics reset when any key changes. Cross-endpoint cache transfer is **not** assumed.
+Segment metrics reset when any key changes or when the extension starts a new session. This is why `/zai-cache` can show fewer tokens than Pi's full Session Info. Cross-endpoint and cross-model cache transfer is not assumed.
+
+All-zero usage objects from connection failures or local command responses are ignored. They do not replace the last successful cache sample or increment the provider request count.
+
+## Prompt stability
 
 Fingerprints canonicalize content without logging raw prompts:
 
-- strip volatile lines (git status, timestamps, token counts)
-- ignore content below the dynamic-context marker
-- hash tool definitions in stable sorted order
+- strip recognized volatile lines such as git status, timestamps, and token counts
+- ignore content below the explicit dynamic-context marker when calculating the stable prefix
+- hash active tool definitions in stable sorted order
 
-## Cost-first defaults
-
-Default mode optimizes cache prefix stability:
-
-```text
-clear_thinking = true
-preserved reasoning replay = disabled
-```
-
-Historical `reasoning_content` is not replayed unless you opt in via `zai.preserveThinking`. See [Thinking](thinking.md).
-
-## System prompt layout
-
-Put durable instructions in a **stable prefix**. Put volatile runtime context after the marker:
+The default `promptStability.mode` is `observe`: it measures structure without changing the prompt. `safe` can move recognized volatile lines below an existing marker.
 
 ```text
 You are a coding agent. Follow project conventions.
@@ -75,27 +70,33 @@ Volatile line prefixes recognized by the extension:
 - `Context tokens:`
 - `Token count:`
 
-`/zai` reports stable vs volatile line counts and the current fingerprint.
+## Preserved thinking and cache
+
+Current Pi releases send `clear_thinking=false` while Z.AI thinking is enabled. pi-zai leaves that native behavior unchanged unless `zai.preserveThinking` is explicitly set.
+
+Z.AI documents preserved thinking as beneficial for coding and agent scenarios because exact historical reasoning blocks can improve reasoning continuity and cache reuse. Forcing `preserveThinking: false` changes the request to `clear_thinking=true`; that is now an explicit trade-off rather than the default.
+
+See [Thinking](thinking.md).
 
 ## Compaction
 
 On compaction and branch summarization for Z.AI sessions, the extension injects deterministic instructions:
 
 - preserve visible decisions, paths, and tool outcomes
-- drop hidden reasoning blocks
+- avoid replaying hidden reasoning in the compacted summary
 - use fixed section headings for stable summaries
 
-This keeps post-compaction prefixes more predictable and cache-friendly.
+A compaction is a legitimate context boundary. Pi's full Session Info may include usage before and after it, while current-segment diagnostics focus on the active cache shape.
 
 ## Recommendations
 
-`/zai-cache status` includes actionable recommendations when:
+`/zai-cache status` includes recommendations when:
 
-- hit ratio is low or moderate
-- a recent prefix change reset the segment
+- the segment hit ratio is low or moderate
+- a recent provider/model/prompt/toolset change reset the segment
 - cache writes exceed reads
 
-Reset telemetry only:
+Reset extension-side segment metrics only:
 
 ```text
 /zai-cache reset-stats
@@ -105,19 +106,19 @@ This does **not** invalidate Z.AI server-side caches.
 
 ## Best practices
 
-1. **Stable system prompt** — edit rules rarely; append dynamic context below the marker.
-2. **Stable toolset** — avoid adding/removing tools mid-session when possible.
-3. **One endpoint per workflow** — do not expect cache to transfer between Coding Plan and Platform.
-4. **Append history** — multi-turn conversations cache prior messages when prefixes match.
-5. **Monitor** — use `/zai-cache status` after several turns; aim for rising `cacheRead`.
+1. **Stable system prompt** — edit durable rules rarely; put dynamic context after the marker.
+2. **Stable toolset** — avoid adding or removing tools mid-session when possible.
+3. **One endpoint per workflow** — do not assume cache transfer between Coding Plan and Platform.
+4. **Append history exactly** — preserved reasoning blocks must remain complete and unmodified.
+5. **Compare scopes correctly** — use `/zai` for Z.AI session totals and `/zai-cache` for the current segment.
 
 ## Platform billing note
 
-On `zai-platform`, cached tokens use discounted pricing from model metadata (`cost.cacheRead`). `/zai-usage` and `/zai-cache` show estimated dollar savings on Platform; Coding Plan shows `subscription-managed`.
+On `zai-platform`, cached tokens use discounted pricing from model metadata (`cost.cacheRead`). `/zai-usage` and `/zai-cache` show estimated dollar values on Platform. Coding Plan output is marked `subscription-managed` because Pi's model catalog reports zero per-token prices for that subscription endpoint.
 
-## Benchmark results (2026-07-12)
+## Cache-affinity benchmark snapshot (2026-07-12)
 
-Live A/B run via `npm run benchmark:cache-affinity` (Z.AI Coding Plan endpoint).
+A live A/B run compared no affinity, a fixed `X-Session-Id`, and a rotating id on the Z.AI Coding Plan endpoint.
 
 ### Settings
 
@@ -126,20 +127,18 @@ Live A/B run via `npm run benchmark:cache-affinity` (Z.AI Coding Plan endpoint).
 | Trials per mode | 2 (`PI_ZAI_AB_TRIALS=2`) |
 | Turns per trial | 4 (`PI_ZAI_AB_TURNS=4`) |
 | Stable prefix lines | 200 (`PI_ZAI_AB_PREFIX_LINES=200`) |
-| Model | `glm-4.6` (default) |
+| Model | `glm-4.6` |
 
 ### Warm-turn cache hit ratio (turn 0 excluded)
 
 | Mode | Median | Aggregate | Avg latency | Errors |
 |------|--------|-----------|-------------|--------|
-| **stable** (fixed `X-Session-Id`, pi-zai default) | 97.9% | 97.9% | 3100 ms | 0 |
-| **none** (no `X-Session-Id`, baseline pi) | 98.6% | 98.6% | 4543 ms | 0 |
-| **rotating** (new `X-Session-Id` every turn) | 98.8% | 98.8% | 2357 ms | 0 |
+| fixed `X-Session-Id` (experimental) | 97.9% | 97.9% | 3100 ms | 0 |
+| no `X-Session-Id` (default) | 98.6% | 98.6% | 4543 ms | 0 |
+| rotating id (anti-affinity control) | 98.8% | 98.8% | 2357 ms | 0 |
 
-Per-trial medians: stable 97.9%, 97.9%; none 98.8%, 98.4%; rotating 98.8%, 98.8%.
+Per-trial medians: fixed 97.9%, 97.9%; none 98.8%, 98.4%; rotating 98.8%, 98.8%.
 
 ### Conclusion
 
-**Winner: inconclusive** — the benchmark requires a ≥5 percentage-point median gap between modes. All three modes achieved high warm-turn hit ratios (~98%), so `X-Session-Id` cache affinity did not show a measurable advantage in this run. Latency differed (rotating fastest, none slowest) but hit ratio did not.
-
-This is a **single-run snapshot**, not CI. Default benchmark settings (`trials=5`, `turns=6`, `prefixLines=400`) may produce clearer separation; re-run before drawing production conclusions.
+**Inconclusive.** All modes achieved roughly 98% warm-turn cache hits, and the fixed id did not clear the benchmark's five-percentage-point improvement gate. `sessionAffinity` therefore remains off by default and experimental when enabled. This single run is not evidence of a general quality or latency improvement.

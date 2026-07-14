@@ -24,6 +24,10 @@ export interface ZaiTelemetrySettings {
 }
 
 export interface ZaiSettings {
+	/**
+	 * Optional override for Pi's native Z.AI preserved-thinking behavior.
+	 * Omit to leave the upstream request payload unchanged.
+	 */
 	preserveThinking?: boolean;
 	statusTps?: boolean;
 	statusTpsAvg?: boolean;
@@ -41,7 +45,8 @@ export interface ZaiMetricsConfig {
 }
 
 export interface ZaiConfig {
-	preserveThinking: boolean;
+	/** Undefined means: preserve Pi's native payload unchanged. */
+	preserveThinking: boolean | undefined;
 	statusTps: boolean;
 	statusTpsAvg: boolean;
 	promptStabilityMode: PromptStabilityMode;
@@ -168,7 +173,9 @@ export function loadZaiConfig(cwd = process.cwd()): ZaiConfig {
 	const telemetry = loadTelemetryConfig(settings);
 
 	return {
-		preserveThinking: settings?.preserveThinking ?? false,
+		// Undefined deliberately means no override: Pi currently emits
+		// clear_thinking=false for enabled native Z.AI thinking.
+		preserveThinking: settings?.preserveThinking,
 		statusTps: settings?.statusTps ?? true,
 		statusTpsAvg: settings?.statusTpsAvg ?? false,
 		promptStabilityMode: parseEnum(

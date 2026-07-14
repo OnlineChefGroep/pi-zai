@@ -12,6 +12,7 @@ import { formatCacheDiagnostics } from "./diagnostics.ts";
 import type { SessionCacheStats } from "./metrics.ts";
 import {
 	buildCacheSegmentKey,
+	CacheMetricsStore,
 	computeCacheRatios,
 	detectSegmentChange,
 } from "./metrics.ts";
@@ -34,6 +35,39 @@ describe("metrics", () => {
 			hitRatio: 2 / 3,
 			missRatio: 1 / 3,
 		});
+	});
+
+	it("counts cache writes as non-hit prompt tokens", () => {
+		expect(
+			computeCacheRatios({ input: 100, cacheRead: 800, cacheWrite: 100 }),
+		).toEqual({
+			hitRatio: 0.8,
+			missRatio: 0.2,
+		});
+	});
+
+	it("does not record all-zero provider usage as a cache request", () => {
+		const store = new CacheMetricsStore();
+		store.reset(
+			{
+				provider: "zai",
+				endpoint: "coding",
+				model: "glm-5.2",
+				systemFingerprint: "abc",
+				toolsetFingerprint: "def",
+			},
+			"session",
+		);
+		store.record({} as never, {
+			input: 0,
+			cacheRead: 0,
+			cacheWrite: 0,
+			output: 0,
+			totalTokens: 0,
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+		});
+		expect(store.get()?.rolling.requests).toBe(0);
+		expect(store.get()?.last).toBeUndefined();
 	});
 
 	it("detects segment changes across model and fingerprints", () => {
@@ -134,7 +168,7 @@ describe("recommendations", () => {
 });
 
 describe("diagnostics", () => {
-	it("formats cache status for /zai-cache", () => {
+	it("formats current-segment cache status and rolling miss ratio", () => {
 		const stats: SessionCacheStats = {
 			segment: {
 				provider: "zai-platform",
@@ -144,23 +178,23 @@ describe("diagnostics", () => {
 				toolsetFingerprint: "efgh5678",
 			},
 			last: {
-				input: 100,
-				cacheRead: 400,
+				input: 0,
+				cacheRead: 500,
 				cacheWrite: 0,
 				output: 50,
 				reasoning: 0,
 				totalTokens: 550,
 				cost: 0.01,
-				hitRatio: 0.8,
-				missRatio: 0.2,
+				hitRatio: 1,
+				missRatio: 0,
 				estimatedSavings: 0.002,
 			},
 			rolling: {
-				input: 100,
-				cacheRead: 400,
+				input: 200,
+				cacheRead: 800,
 				cacheWrite: 0,
-				output: 50,
-				requests: 1,
+				output: 100,
+				requests: 2,
 				hitRatio: 0.8,
 				estimatedCost: 0.01,
 				estimatedSavings: 0.002,
@@ -172,7 +206,9 @@ describe("diagnostics", () => {
 			"status",
 		);
 		expect(output).toContain("Stable-prefix fingerprint: abcd1234");
-		expect(output).toContain("Cached (cacheRead): 400");
-		expect(output).toContain("Session hit ratio: 80.0%");
+		expect(output).toContain("Cached input: 800");
+		expect(output).toContain("Segment hit ratio: 80.0%");
+		expect(output).toContain("Segment miss ratio: 20.0%");
+		expect(output).toContain("Last successful request hit ratio: 100.0%");
 	});
 });

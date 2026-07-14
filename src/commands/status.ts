@@ -27,6 +27,7 @@ import {
 	formatCredentialSource,
 	formatDollarCost,
 	formatPercent,
+	formatTokens,
 	formatUsageLine,
 	getEndpointLabel,
 	getLastAssistantUsage,
@@ -68,6 +69,7 @@ export function registerZaiStatusCommand(
 				sessionTotals.input +
 				sessionTotals.cacheRead +
 				sessionTotals.cacheWrite;
+			const sessionMissed = sessionTotals.input + sessionTotals.cacheWrite;
 			const sessionHitRatio =
 				sessionPrompt > 0
 					? sessionTotals.cacheRead / sessionPrompt
@@ -78,9 +80,11 @@ export function registerZaiStatusCommand(
 			const toolStream =
 				getZaiCompat(model)?.zaiToolStream === true ? "enabled" : "disabled";
 			const sessionCostLabel =
-				model.provider === "zai-platform"
+				sessionTotals.cost > 0
 					? formatDollarCost(sessionTotals.cost)
-					: "subscription-managed";
+					: model.provider === "zai-platform"
+						? "$0.00"
+						: "subscription-managed";
 			const promptAnalysis = resolvePromptStability(
 				ctx.getSystemPrompt(),
 				sessionState.promptStability,
@@ -114,7 +118,7 @@ export function registerZaiStatusCommand(
 				formatKeyValue("Telemetry", config.telemetryMode),
 				formatKeyValue("Affinity", config.sessionAffinity),
 				formatKeyValue("Prompt mode", config.promptStabilityMode),
-				...formatSection("Last usage", [
+				...formatSection("Last successful Z.AI usage", [
 					lastUsage ? formatUsageLine(lastUsage) : "none",
 				]),
 				...formatSection("Throughput", [
@@ -123,9 +127,10 @@ export function registerZaiStatusCommand(
 				]),
 				...formatSection("Tools", formatToolSessionLines(toolStats)),
 				...formatSection("Cache", [
-					`Last request hit ratio: ${lastHitRatio !== undefined ? formatPercent(lastHitRatio) : "n/a"}`,
-					`Session hit ratio: ${formatPercent(sessionHitRatio)}`,
-					`Session cost: ${sessionCostLabel}`,
+					`Last successful request hit ratio: ${lastHitRatio !== undefined ? formatPercent(lastHitRatio) : "n/a"}`,
+					`Z.AI session prompt: ${formatTokens(sessionPrompt)} (${formatTokens(sessionTotals.cacheRead)} cached, ${formatTokens(sessionMissed)} uncached/write)`,
+					`Z.AI session hit ratio: ${formatPercent(sessionHitRatio)}`,
+					`Z.AI session cost: ${sessionCostLabel}`,
 				]),
 				...formatSection(
 					"Prompt stability",

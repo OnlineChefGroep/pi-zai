@@ -6,24 +6,25 @@ pi-zai is a Z.AI-only Pi extension. This page describes what data leaves your ma
 
 | Layer | Status | Where data goes |
 |-------|--------|-----------------|
-| **Z.AI API** | Always (when you chat) | Prompts and completions to Z.AI per Pi's normal provider flow |
-| **Local metrics** | On by default (`zai.metrics.mode: local`) | SQLite on your machine only |
-| **Remote telemetry** | **Opt-in** (default off) | Anonymous daily aggregates to Online Chef Groep when enabled |
+| **Z.AI API** | Always when you chat | Prompts, tool definitions, completions, and preserved reasoning through Pi's normal provider flow |
+| **Local metrics** | On by default (`zai.metrics.mode: local`) | Privacy-reduced operational fields in SQLite on your machine |
+| **Remote telemetry** | Opt-in, default off | Anonymous daily aggregates to Online Chef Groep when explicitly enabled |
 
-**Remote telemetry is off by default in v0.3.0.** Enable via settings + `/zai-telemetry enable`. See [Architecture — remote telemetry](architecture.md#3-remote-telemetry-opt-in-v030).
+Remote telemetry is off by default. Enable it only through settings plus `/zai-telemetry enable`. See [Architecture — remote telemetry](architecture.md#3-remote-telemetry-opt-in-v030).
 
-Inspect your setup anytime:
+Inspect your setup at any time:
 
 ```text
 /zai-privacy preview
 /zai-data status
+/zai-telemetry status
 ```
 
 ## Credentials
 
-- API keys resolve through Pi's `ModelRegistry`, `auth.json`, `models.json`, runtime `--api-key`, and env vars (`ZAI_API_KEY`, `ZAI_CODING_CN_API_KEY`).
-- The extension **never prints key values** in commands, logs, or diagnostics.
-- `/zai` and `/zai-doctor` show credential **source names** only (for example `ZAI_API_KEY`, `auth.json`).
+- API keys resolve through Pi's `ModelRegistry`, `auth.json`, `models.json`, runtime `--api-key`, and environment variables such as `ZAI_API_KEY` and `ZAI_CODING_CN_API_KEY`.
+- The extension never prints key values in commands, logs, or diagnostics.
+- `/zai` and `/zai-doctor` show credential source names only, such as `ZAI_API_KEY` or `auth.json`.
 
 ### Resolution order (Pi native)
 
@@ -32,22 +33,22 @@ Inspect your setup anytime:
 3. Provider `apiKey` from `models.json`
 4. Environment variable
 
-pi-zai does not add separate env precedence or shell helpers.
+pi-zai does not add separate credential precedence or shell helpers.
 
 ### Local credential files
 
-If you store keys outside Pi:
+When storing keys outside Pi:
 
 ```bash
 chmod 700 ~/.config/zai
 chmod 600 ~/.config/zai/credentials.env
 ```
 
-Never commit credential files. Rotate keys if exposed in chat, logs, or screenshots.
+Never commit credential files. Rotate keys exposed in chat, logs, screenshots, or shell history.
 
 ## Local metrics storage
 
-Default: `zai.metrics.mode: "local"`. Each Z.AI provider attempt can be recorded locally as a privacy-reduced row.
+Default: `zai.metrics.mode: "local"`. Z.AI attempts can be recorded locally as privacy-reduced rows.
 
 ### Files
 
@@ -56,9 +57,9 @@ Default: `zai.metrics.mode: "local"`. Each Z.AI provider attempt can be recorded
 ~/.pi/agent/state/pi-zai/local.secret
 ```
 
-- `local.secret` — random 256-bit key for HMAC project IDs. **Never sent remotely.**
-- `projectId` — `HMAC(localSecret, canonicalCwd)`. Not a reversible path hash.
-- `sessionHash` — hash of Pi session id. Local only.
+- `local.secret` — random 256-bit key for HMAC project identifiers. Never sent remotely.
+- `projectId` — `HMAC(localSecret, canonicalCwd)`. It is not a reversible path hash.
+- `sessionHash` — hash of the Pi session id. Local only.
 
 ### Stored per attempt (allowlist)
 
@@ -66,22 +67,26 @@ Default: `zai.metrics.mode: "local"`. Each Z.AI provider attempt can be recorded
 |-------|---------|
 | `occurredAt` | Timestamp |
 | `projectId`, `sessionHash` | Local pseudonymous correlation |
-| `queryId`, `requestId`, `attempt` | Retry/correlation (no prompt content) |
+| `queryId`, `requestId`, `attempt` | Retry and request correlation without prompt content |
 | `provider`, `model`, `endpointKind` | Z.AI routing context |
-| `thinkingLevel`, `extensionVersion` | Config context |
-| `systemFingerprint`, `toolsetFingerprint`, `payloadFingerprint` | Short hashes only — **local SQLite only** |
+| `thinkingLevel`, `extensionVersion` | Configuration context |
+| `systemFingerprint`, `toolsetFingerprint`, `payloadFingerprint` | Short hashes, local SQLite only |
 | Token counters | `input`, `cacheRead`, `cacheWrite`, `output` |
 | Latency | `requestToHeadersMs`, `requestToFirstDeltaMs`, `requestToFirstToolDeltaMs`, `totalMs` |
-| Tool aggregates | `toolCallsInTurn`, `toolErrorsInTurn`, `toolDurationMsTotal` — counts/durations only, never args/results |
-| `httpStatus`, `errorCategory` | Controlled category labels — no raw error bodies |
-| `estimatedApiCostMicrousd` | Derived from usage metadata |
+| Tool aggregates | Counts, error counts, and total duration only; never arguments or results |
+| `httpStatus`, `errorCategory` | Controlled category labels, never raw provider error bodies |
+| `estimatedApiCostMicrousd` | Derived from usage metadata when pricing is known |
 
-### Never stored (local or remote)
+### Never stored in local metrics or remote telemetry
 
-- Prompts, code, reasoning, tool output
-- API keys, filesystem paths, hostnames, repository names
-- Raw provider error message bodies
-- Install IDs or reversible project paths
+- Prompt, source-code, or reasoning text
+- Tool arguments or tool-result text
+- API keys
+- Filesystem paths, hostnames, or repository names
+- Raw provider error response bodies
+- Install identifiers or reversible project paths
+
+Normal inference data still goes to Z.AI through Pi. “Never stored” describes pi-zai's metrics systems, not the provider request required to run the model.
 
 ### Modes
 
@@ -91,65 +96,89 @@ Default: `zai.metrics.mode: "local"`. Each Z.AI provider attempt can be recorded
 | `memory` | In-process only; lost on shutdown |
 | `local` | SQLite with memory fail-open if the database cannot open |
 
-Retention: `retentionDays`, `rollupRetentionDays`, `maxDatabaseBytes` in settings. Old detail rows roll up to daily summaries before deletion.
+Retention is controlled by `retentionDays`, `rollupRetentionDays`, and `maxDatabaseBytes`. Old detail rows roll up to daily summaries before deletion.
 
 ### Operator commands
 
 | Command | Action |
 |---------|--------|
 | `/zai-data status` | Storage kind, row counts, project hash |
-| `/zai-data export-json <path>` | Export attempts for current project |
+| `/zai-data export-json <path>` | Export attempts for the current project |
 | `/zai-data export-csv <path>` | CSV export |
-| `/zai-data clear-project` | Delete metrics for current project hash |
-| `/zai-data clear-details` | Delete detail rows; keep rollups |
+| `/zai-data clear-project` | Delete metrics for the current project hash |
+| `/zai-data clear-details` | Delete detail rows while retaining daily rollups |
 | `/zai-data clear-benchmarks` | Delete benchmark run rows |
-| `/zai-data clear-all` | Wipe all local pi-zai metrics **and rotate** `local.secret` |
+| `/zai-data clear-all` | Wipe all local pi-zai metrics and rotate `local.secret` |
 | `/zai-data vacuum` | SQLite maintenance |
-| `/zai-transport` | Local latency and error-category summary |
-| `/zai-privacy preview` | Allowlist, never-remote fields, remote telemetry mode |
-| `/zai-telemetry status` | Mode, consent, pending upload days |
-| `/zai-telemetry enable` | Opt-in confirm (requires `telemetry.mode: aggregate`) |
-| `/zai-telemetry disable` | Remove consent file |
-| `/zai-telemetry preview [day]` | Local aggregate JSON for a UTC day (not sent) |
-| `/zai-telemetry upload [day]` | Upload one completed day |
-| `/zai-telemetry sync` | Upload all pending completed days |
+| `/zai-transport` | Local latency and controlled error-category summary |
+| `/zai-privacy preview` | Allowlists, never-remote fields, and aggregate preview |
+| `/zai-telemetry status` | Mode, consent, endpoint, and pending UTC days |
+| `/zai-telemetry enable` | Write explicit consent after aggregate mode is configured |
+| `/zai-telemetry disable` | Remove consent and stop uploads |
+| `/zai-telemetry preview [day]` | Render a local aggregate without sending it |
+| `/zai-telemetry upload [day]` | Upload one completed UTC day |
+| `/zai-telemetry sync` | Upload pending completed days |
 
 ## Prompt fingerprinting
 
-- System prompts are canonicalized (whitespace, volatile patterns) before hashing.
-- Raw prompt text is **never** written to SQLite, exports, or command output.
+- System prompts are canonicalized before hashing.
+- Raw prompt text is never written to SQLite, exports, telemetry, or command output.
 - `/zai` and `/zai-cache` show short fingerprints only.
+- `promptStability.mode: observe` measures structure without changing the request.
+- `promptStability.mode: safe` can move recognized volatile lines below an existing `--- dynamic context ---` marker.
 
-With `zai.promptStability.mode: "safe"`, content below an explicit `--- dynamic context ---` marker may be normalized before send and fingerprinting. See [Cache optimization](cache-optimization.md).
+See [Cache optimization](cache-optimization.md).
 
-## Preserve thinking
+## Preserved thinking
 
-`zai.preserveThinking: true` replays historical reasoning in Z.AI API requests. That sends more data to Z.AI and may include sensitive intermediate reasoning. Default is `false`.
+Preserved reasoning is part of the normal Z.AI inference request, not pi-zai telemetry. Current Pi releases send `clear_thinking=false` when Z.AI thinking is enabled and replay compatible historical reasoning through Pi's provider implementation.
+
+The `zai.preserveThinking` setting is an optional explicit override:
+
+| Value | Effect |
+|-------|--------|
+| omitted | Leave Pi's native payload unchanged |
+| `true` | Force `clear_thinking=false` while thinking is enabled |
+| `false` | Force `clear_thinking=true` while thinking is enabled |
+
+Preserved reasoning can contain sensitive intermediate analysis and therefore leaves your machine as part of normal Z.AI chat traffic. Forcing it off reduces that replay, but can also reduce reasoning continuity and cache reuse in coding/tool workflows. `/zai` shows the effective policy.
+
+Compaction is a separate boundary: pi-zai asks Pi's compaction process to preserve visible decisions and tool outcomes without replaying hidden reasoning in the compacted summary.
 
 ## Network probes
 
-`/zai-doctor` may call `${baseUrl}/models` with configured auth. Response status is shown; bodies and secrets are not logged.
+`/zai-doctor` can make explicit diagnostic requests:
+
+- `GET ${baseUrl}/models` for reachability
+- three short chat completions for connection-stability probing
+
+The probes use configured authentication. Response status and controlled summaries are shown; secrets and response bodies are not logged.
 
 `/zai-usage` calls Z.AI monitor APIs for Coding Plan quota when credentials exist.
 
-**pi-zai uploads metrics only when you opt in** (`zai.telemetry.mode: aggregate` + `/zai-telemetry enable`). Default is no remote uploads.
-
 ## Remote telemetry (opt-in)
 
-Default: `zai.telemetry.mode: "off"`. When enabled:
+Default: `zai.telemetry.mode: "off"`. Uploads require both:
 
-1. Set `"telemetry": { "mode": "aggregate" }` in settings and `/reload`
-2. Run `/zai-telemetry enable` and confirm the prompt
-3. Completed UTC days upload on session start or `/zai-telemetry sync`
+1. set `"telemetry": { "mode": "aggregate" }` and reload;
+2. run `/zai-telemetry enable` and confirm consent.
 
-Consent file: `~/.pi/agent/state/pi-zai/telemetry.consent.json`. Disable with `/zai-telemetry disable` (settings mode unchanged).
+Completed UTC days can upload on session start or `/zai-telemetry sync`.
+
+Consent file:
+
+```text
+~/.pi/agent/state/pi-zai/telemetry.consent.json
+```
+
+Disable with `/zai-telemetry disable`; the configured mode remains unchanged.
 
 ### Uploaded fields (allowlist)
 
 | Field | Purpose |
 |-------|---------|
 | `day` | UTC date |
-| `extensionVersion`, `promptMode` | Build and stability mode |
+| `extensionVersion`, `promptMode` | Build and prompt-stability mode |
 | `attempts`, `errors` | Daily counts |
 | Token counters | `input`, `cacheRead`, `cacheWrite`, `output` |
 | `turnBucket`, `cacheRatioBucket`, `retryRateBucket` | Bucketed bands only |
@@ -158,25 +187,25 @@ Consent file: `~/.pi/agent/state/pi-zai/telemetry.consent.json`. Disable with `/
 
 ### Never uploaded
 
-- Prompts, code, paths, install IDs, API keys
-- Project/session/query IDs, fingerprints
+- Prompts, source code, reasoning, tool arguments, or tool results
+- Paths, install identifiers, or API keys
+- Project/session/query identifiers or fingerprints
 - Raw provider error bodies
-- IP address as an application field
+- IP address as an application payload field
 
-`/zai-privacy preview` shows a local aggregate sketch. Status is `preview-only-not-sent` until mode + consent are active (`aggregate-ready`).
+`/zai-privacy preview` renders the local aggregate shape. Its status remains `preview-only-not-sent` until both mode and consent are active, then becomes `aggregate-ready`.
 
-Ingest: `POST https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate` (Cloudflare Worker → Analytics Engine). Override URL with `zai.telemetry.ingestUrl` for staging.
-
-Optional encrypted diagnostic bundles (preview + confirm) are a separate later phase.
+Ingest endpoint: `POST https://api.chefgroep.online/pi-zai/telemetry/v1/aggregate`. Override `zai.telemetry.ingestUrl` for staging or self-hosting.
 
 ## Benchmark data
 
-`/zai-benchmark` stores run manifests and completed reports in the same local SQLite database (`benchmark_runs` table). Reports contain aggregated usage/transport/cache stats for the benchmark window — not prompt content.
+`/zai-benchmark` stores run manifests and completed reports in the same local SQLite database. Reports contain aggregated usage, transport, and cache statistics for the benchmark window—not prompt or reasoning content.
 
 ## Boundary tests
 
-The package includes source-level tests that assert:
+The package includes tests asserting that:
 
-- Remote `fetch` isolated to `telemetry/uploader.ts`
-- Privacy preview does not call the network
-- `zai-telemetry` command and aggregate mode registered in config
+- remote telemetry `fetch` is isolated to `telemetry/uploader.ts`;
+- privacy preview does not call the network;
+- telemetry requires aggregate mode plus explicit consent;
+- payload normalization performs no thinking mutation when no override is configured.

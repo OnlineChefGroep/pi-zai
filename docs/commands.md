@@ -4,124 +4,148 @@ All commands require an active Z.AI model unless noted.
 
 ## `/zai`
 
-Status dashboard:
+Status dashboard for the active Z.AI model:
 
-- provider, endpoint, model
-- native thinking level
-- `clear_thinking` and preserved thinking state
-- tool streaming flag
-- credential source name (never the key value)
-- last usage line
-- throughput (tok/s)
-- tool executions this session (counts/durations by tool name — never args/results)
-- cache hit ratios and session cost
-- prompt stability (stable/volatile line counts, fingerprint)
-- metrics / telemetry / affinity / prompt mode
+- provider, endpoint, and model
+- Pi-native thinking level and mapped Z.AI request fields
+- effective `clear_thinking` policy: native Pi or an explicit settings override
+- tool-streaming compatibility flag
+- credential source name, never the key value
+- latest successful Z.AI provider usage
+- output and turn throughput
+- tool executions for the current process session: counts and durations only
+- Z.AI-provider session totals and cache-hit ratio
+- prompt-stability counts and fingerprint
+- metrics, telemetry, affinity, and prompt modes
+
+The cache section in `/zai` scans Pi session entries but includes Z.AI providers only. It can span multiple Z.AI models or cache segments. Pi's own Session Info remains the authoritative all-provider session total.
 
 ## `/zai-endpoint coding|platform`
 
-Switch endpoint by selecting the default model on the target provider via Pi's native `setModel`.
+Switch endpoint by selecting the default model on the target provider through Pi's native `setModel`:
 
 ```text
 /zai-endpoint coding
 /zai-endpoint platform
 ```
 
-No hidden endpoint state — the active endpoint always matches the selected model.
+There is no hidden endpoint state. The active endpoint always follows the selected model. `zai-platform` must already be registered in `models.json`.
 
 ## `/zai-cache [status|reset-stats|explain]`
 
-Implicit cache diagnostics.
+Implicit-cache diagnostics for the **current cache segment**.
+
+A segment is defined by provider, endpoint, model, stable system-prompt fingerprint, and active toolset fingerprint. Its totals reset when one of those boundaries changes, so they can be lower than `/zai` or Pi Session Info.
 
 | Action | Description |
 |--------|-------------|
-| `status` (default) | Segment key, token breakdown, ratios, cost, recommendations |
-| `reset-stats` | Clear local telemetry; does not invalidate server cache |
-| `explain` | How Z.AI implicit caching works in Pi |
+| `status` (default) | Current segment key, successful-request token totals, hit/miss ratios, cost, boundaries, and recommendations |
+| `reset-stats` | Clear extension-side segment metrics; does not invalidate Z.AI server-side cache |
+| `explain` | Explain Z.AI implicit caching, Pi usage fields, ratios, and scope differences |
+
+All-zero usage objects from connection failures are ignored as cache samples. The last-request line therefore refers to the last successful request with non-empty prompt usage.
 
 ## `/zai-usage`
 
-Session usage totals with Z.AI interpretation:
+Z.AI-provider session usage with endpoint-specific interpretation:
 
-- uncached input, cacheRead, cacheWrite, output
-- hit ratio
-- Platform: estimated dollar cost
-- Coding Plan: `subscription-managed` plus live quota (5h / weekly / MCP) from monitor API
+- uncached input, cached input, cache writes, and output
+- aggregate Z.AI hit ratio
+- Platform endpoint: estimated dollar cost from model metadata
+- Coding Plan endpoint: subscription-managed usage plus live quota windows from the monitor API when available
+
+This command does not include non-Z.AI providers used earlier in the same Pi session.
 
 ## `/zai-doctor`
 
-Offline integration checks:
+Integration checks and optional live probes:
 
-- GLM-5.2 thinking level map (when `reasoning_effort` supported)
+- current Pi GLM-5.2 thinking-level map
+- Pi-native versus explicitly overridden preserved-thinking policy
 - Platform pricing metadata
-- compaction policy presence
-- fingerprint utilities
-- cache affinity header (`X-Session-Id`)
-- connection stability probe (3 chat completions)
-- Pi retry settings advice
-- optional live `/models` probe when credentials exist
+- compaction-policy presence
+- prompt and tool fingerprint utilities
+- optional cache-affinity header (`X-Session-Id`)
+- streamed usage and cached-token support
+- Pi retry-settings advice
+- optional `/models` reachability probe
+- optional three-request connection-stability probe
 
-Network probes use configured auth headers and omit secrets from output.
+The current GLM-5.2 mapping is:
+
+```text
+low / medium / high → Z.AI high
+max                 → Z.AI max
+```
+
+Network probes use configured credentials and omit key values and response bodies from output.
 
 ## `/zai-data [action]`
 
-Local Z.AI attempt metrics (SQLite by default). See [Security](security.md) for the field allowlist.
+Local privacy-reduced Z.AI attempt metrics. SQLite is the default storage mode. See [Security](security.md) for the exact allowlist.
 
 | Action | Description |
 |--------|-------------|
 | `status` (default) | Storage kind, paths, row counts, project/session hashes |
 | `clear-project` | Delete metrics for the current project hash |
-| `clear-details` | Delete detail rows; keep daily rollups |
+| `clear-details` | Delete detail rows while retaining daily rollups |
 | `clear-benchmarks` | Delete benchmark run rows |
 | `clear-all` | Wipe all pi-zai metrics and rotate `local.secret` |
-| `export-json <path>` | Export attempts for current project |
-| `export-csv <path>` | CSV export |
-| `vacuum` | SQLite maintenance |
+| `export-json <path>` | Export attempts for the current project |
+| `export-csv <path>` | Export CSV |
+| `vacuum` | Run SQLite maintenance |
 
 ## `/zai-transport`
 
-Local transport summary for the current project: attempt count, error count, average latency (headers, first delta, first tool, total), and error categories. No raw error bodies.
+Local transport summary for the current project: attempt count, controlled error count, average request-to-headers, first-delta, first-tool, and total latency. Raw provider error bodies are not retained.
 
 ## `/zai-privacy preview`
 
-Local privacy report: SQLite allowlist, never-remote fields, remote telemetry mode, and aggregate JSON preview (sent only when mode + consent are active). Default action is `preview`.
+Local privacy report showing:
+
+- SQLite field allowlist
+- fields that are never stored or uploaded
+- remote telemetry mode and consent state
+- aggregate JSON preview
+
+The preview is not sent unless aggregate mode and explicit consent are both active.
 
 ## `/zai-telemetry [action]`
 
-Opt-in anonymous daily aggregate uploads. Requires `zai.telemetry.mode: aggregate` in settings.
+Opt-in anonymous daily aggregate uploads. Requires `zai.telemetry.mode: aggregate` plus explicit consent.
 
 | Action | Description |
 |--------|-------------|
-| `status` (default) | Mode, consent file, ingest URL, pending UTC days |
-| `preview [day]` | Local aggregate JSON for a day (not sent) |
-| `enable` | Confirm opt-in; writes consent file |
-| `disable` | Remove consent; stops uploads |
+| `status` (default) | Mode, consent file, ingest endpoint, pending UTC days |
+| `preview [day]` | Build local aggregate JSON for a day without sending it |
+| `enable` | Confirm opt-in and write the consent file |
+| `disable` | Remove consent and stop uploads |
 | `upload [day]` | Upload one completed UTC day |
-| `sync` | Upload all pending completed days |
+| `sync` | Upload pending completed days |
 
 ## `/zai-benchmark [action]`
 
-A0–A3 cache benchmark harness and local run tracking.
+A0–A3 cache benchmark manifest and local run tracking.
 
 | Action | Description |
 |--------|-------------|
-| `manifest` (default) | Variants, scenarios, sample gates |
-| `instructions <A0–A3> [scenario]` | Setup steps and settings JSON |
-| `start <A1\|A2\|A3> [scenario]` | Begin a tracked run (records `attemptsBaseline`) |
-| `complete [run-id]` | Finish active run and print gate report |
+| `manifest` (default) | Variants, scenarios, and sample gates |
+| `instructions <A0–A3> [scenario]` | Setup instructions and settings JSON |
+| `start <A1|A2|A3> [scenario]` | Begin a tracked extension run and record its attempt baseline |
+| `complete [run-id]` | Finish an active run and print its gate report |
 | `status` | Recent runs and active run id |
-| `report [run-id]` | Show stored report |
-| `gates` | Completed runs vs sample targets |
+| `report [run-id]` | Show a stored report |
+| `gates` | Compare completed runs with sample targets |
 
-A0 is native Pi without pi-zai; use it as control outside this extension.
+A0 is native Pi without pi-zai and must be run outside the extension. A1 observes prompt stability, A2 adds safe prompt normalization, and A3 adds experimental fixed-session affinity.
 
-## Benchmark (live script)
+## Live cache-affinity script
 
-From `packages/pi-zai` after build:
+From the repository root after installing dependencies:
 
 ```bash
 export ZAI_API_KEY='...'
 npm run benchmark:cache-affinity
 ```
 
-Compares warm-turn cache hit rate: stable `X-Session-Id` vs none vs rotating (anti-affinity control). Optional JSON via `PI_ZAI_AB_OUTPUT`.
+The script compares a fixed `X-Session-Id`, no affinity header, and a rotating-id anti-affinity control. Optional JSON output is configured with `PI_ZAI_AB_OUTPUT`.

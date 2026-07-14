@@ -185,8 +185,27 @@ describe("extension boundary (runtime)", () => {
 		expect(fetchSpy).not.toHaveBeenCalled();
 	});
 
-	it("normalizes thinking via before_provider_request at runtime", async () => {
+	it("leaves Pi native thinking payload unchanged by default", async () => {
 		const cwd = tempCwd();
+		const pi = createMockExtensionApi({ cwd, model: createZaiModel() });
+		piZaiExtension(pi);
+		const ctx = createExtensionContext(cwd);
+
+		const [result] = await pi.trigger(
+			"before_provider_request",
+			{
+				type: "before_provider_request",
+				payload: { thinking: { type: "enabled", clear_thinking: false } },
+			},
+			ctx,
+		);
+
+		expect(result).toBeUndefined();
+	});
+
+	it("applies an explicit preserveThinking=false override at runtime", async () => {
+		const cwd = tempCwd();
+		writeProjectSettings(cwd, { zai: { preserveThinking: false } });
 		const pi = createMockExtensionApi({ cwd, model: createZaiModel() });
 		piZaiExtension(pi);
 		const ctx = createExtensionContext(cwd);

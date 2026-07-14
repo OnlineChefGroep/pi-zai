@@ -1,18 +1,24 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it } from "vitest";
-import { fingerprintToolset } from "./fingerprint.ts";
+import {
+	canonicalizeToolParts,
+	fingerprintCanonicalToolset,
+	type ToolFingerprintInput,
+} from "./fingerprint.ts";
 import {
 	captureActiveToolset,
 	classifyToolsetTransition,
 	type ToolsetSnapshot,
 } from "./toolset-snapshot.ts";
 
-function snap(tools: ToolsetSnapshot["tools"]): ToolsetSnapshot {
-	const sorted = [...tools].sort((a, b) => a.name.localeCompare(b.name));
+function snap(inputs: ToolFingerprintInput[]): ToolsetSnapshot {
+	const tools = inputs
+		.map(canonicalizeToolParts)
+		.sort((a, b) => a.name.localeCompare(b.name));
 	return {
-		count: sorted.length,
-		fingerprint: fingerprintToolset(sorted),
-		tools: sorted,
+		count: tools.length,
+		fingerprint: fingerprintCanonicalToolset(tools),
+		tools,
 	};
 }
 
@@ -118,15 +124,10 @@ describe("classifyToolsetTransition", () => {
 			{ name: "a", description: "A" },
 			{ name: "b", description: "B" },
 		]);
-		const next: ToolsetSnapshot = {
-			count: 2,
-			fingerprint: "different-but-same-content",
-			tools: [
-				{ name: "b", description: "B" },
-				{ name: "a", description: "A" },
-			],
-		};
-		// Force unequal fingerprints while content matches after sort identity.
+		const next = snap([
+			{ name: "b", description: "B" },
+			{ name: "a", description: "A" },
+		]);
 		const transition = classifyToolsetTransition(previous, {
 			...next,
 			fingerprint: `${previous.fingerprint}-reordered`,

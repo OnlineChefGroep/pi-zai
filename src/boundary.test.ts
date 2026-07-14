@@ -250,6 +250,38 @@ describe("extension boundary (runtime)", () => {
 		});
 	});
 
+	it("applies an explicit thinking override to a Platform model without compat metadata", async () => {
+		const cwd = tempCwd();
+		writeProjectSettings(cwd, { zai: { preserveThinking: false } });
+		const model = {
+			...createZaiModel(),
+			provider: "zai-platform",
+			baseUrl: "https://api.z.ai/api/paas/v4",
+			compat: undefined,
+		};
+		const pi = createMockExtensionApi({ cwd, model });
+		piZaiExtension(pi);
+		const ctx = createExtensionContext(cwd, model);
+
+		await pi.trigger(
+			"session_start",
+			{ type: "session_start", reason: "startup" },
+			ctx,
+		);
+		const [result] = await pi.trigger(
+			"before_provider_request",
+			{
+				type: "before_provider_request",
+				payload: { thinking: { type: "enabled", clear_thinking: false } },
+			},
+			ctx,
+		);
+
+		expect(result).toEqual({
+			thinking: { type: "enabled", clear_thinking: true },
+		});
+	});
+
 	it("calls fetch only through the telemetry uploader for aggregate uploads", async () => {
 		const payload: AggregateTelemetryPayload = {
 			schema: 1,

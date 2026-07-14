@@ -512,7 +512,11 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			ctx.model,
 			config.sessionAffinity,
 		);
-		if (!capabilities.usesZaiThinkingFormat && !isNativeZaiModel(ctx.model)) {
+		if (
+			config.preserveThinking === undefined &&
+			!capabilities.usesZaiThinkingFormat &&
+			!isNativeZaiModel(ctx.model)
+		) {
 			return;
 		}
 		return normalizeZaiThinkingPayload(event.payload, config);

@@ -66,19 +66,24 @@ function readProbeCache(expected: ProbeIdentity): ProbeCache | undefined {
 	}
 }
 
-function writeProbeCache(cache: ProbeCache): void {
-	const path = probeCachePath();
-	mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-	writeFileSync(
-		path,
-		`${JSON.stringify(cache, null, 2)}
+function writeProbeCache(cache: ProbeCache): string | undefined {
+	try {
+		const path = probeCachePath();
+		mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+		writeFileSync(
+			path,
+			`${JSON.stringify(cache, null, 2)}
 `,
-		{
-			encoding: "utf8",
-			mode: 0o600,
-		},
-	);
-	chmodSync(path, 0o600);
+			{
+				encoding: "utf8",
+				mode: 0o600,
+			},
+		);
+		chmodSync(path, 0o600);
+		return undefined;
+	} catch (error) {
+		return error instanceof Error ? error.message : "unknown filesystem error";
+	}
 }
 
 function normalizedHeaders(
@@ -100,11 +105,49 @@ function normalizedHeaders(
 	return normalized;
 }
 
-function chatEndpoint(baseUrl: string): string {
-	const normalized = baseUrl.replace(/\/$/, "");
-	return normalized.endsWith("/chat/completions")
-		? normalized
-		: `${normalized}/chat/completions`;
+export type ProbeTarget = {
+	endpoint: string;
+	host: string;
+	requiresHostConfirmation: boolean;
+};
+
+const NATIVE_PROBE_HOSTS: Record<string, string> = {
+	zai: "api.z.ai",
+	"zai-coding-cn": "open.bigmodel.cn",
+};
+
+export function resolveProbeTarget(model: ZaiModel): ProbeTarget {
+	let url: URL;
+	try {
+		url = new URL(model.baseUrl);
+	} catch {
+		throw new Error("Probe endpoint is not a valid URL.");
+	}
+	if (url.protocol !== "https:") {
+		throw new Error("Live capability probes require an HTTPS endpoint.");
+	}
+	if (url.username || url.password) {
+		throw new Error(
+			"Probe endpoint URLs must not contain embedded credentials.",
+		);
+	}
+	const expectedHost = NATIVE_PROBE_HOSTS[model.provider];
+	if (expectedHost && url.hostname !== expectedHost) {
+		throw new Error(
+			`Refusing to send ${model.provider} credentials to unexpected host ${url.hostname}.`,
+		);
+	}
+	url.search = "";
+	url.hash = "";
+	url.pathname = url.pathname.replace(/\/$/, "");
+	if (!url.pathname.endsWith("/chat/completions")) {
+		url.pathname = `${url.pathname}/chat/completions`;
+	}
+	return {
+		endpoint: url.toString(),
+		host: url.host,
+		requiresHostConfirmation: model.provider === "zai-platform",
+	};
 }
 
 async function runSyntheticProbe(
@@ -141,6 +184,7 @@ async function postProbe(
 		method: "POST",
 		headers,
 		body: JSON.stringify(body),
+		redirect: "error",
 		signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
 	});
 }
@@ -183,9 +227,22 @@ export function registerZaiCapabilitiesCommand(
 			const sub = args.trim().split(/\s+/)[0]?.toLowerCase() || "status";
 
 			if (sub === "probe") {
+				let target: ProbeTarget;
+				try {
+					target = resolveProbeTarget(model);
+				} catch (error) {
+					ctx.ui.notify(
+						error instanceof Error ? error.message : "Invalid probe endpoint.",
+						"warning",
+					);
+					return;
+				}
+				const hostNotice = target.requiresHostConfirmation
+					? ` Target host: ${target.host}.`
+					: "";
 				const confirmed = await ctx.ui.confirm(
 					"Live capability probes",
-					"Run four short synthetic Z.AI requests (may incur billing). Continue?",
+					`Run four short synthetic Z.AI requests (may incur billing).${hostNotice} Continue?`,
 				);
 				if (!confirmed) {
 					ctx.ui.notify("Capability probe cancelled.", "info");
@@ -213,7 +270,7 @@ export function registerZaiCapabilitiesCommand(
 					return;
 				}
 
-				const endpoint = chatEndpoint(model.baseUrl);
+				const endpoint = target.endpoint;
 				const syntheticTool = {
 					type: "function",
 					function: {
@@ -293,7 +350,7 @@ export function registerZaiCapabilitiesCommand(
 					results,
 					updatedAt: new Date().toISOString(),
 				};
-				writeProbeCache(cache);
+				const persistenceError = writeProbeCache(cache);
 
 				const lines = [
 					...formatHeading("Z.AI capability probes"),
@@ -301,7 +358,9 @@ export function registerZaiCapabilitiesCommand(
 						(result) =>
 							`${result.name}: ${formatSupport(result.supported)} (${result.detail})`,
 					),
-					"Stored locally as status metadata only (no response bodies).",
+					persistenceError
+						? `Probe results could not be persisted: ${persistenceError}`
+						: "Stored locally as status metadata only (no response bodies).",
 				];
 				ctx.ui.notify(joinCommandLines(lines), "info");
 				return;

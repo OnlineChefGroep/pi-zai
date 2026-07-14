@@ -1,7 +1,8 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
-	fingerprintToolset,
-	type ToolFingerprintInput,
+	type CanonicalToolFingerprint,
+	canonicalizeToolParts,
+	fingerprintCanonicalToolset,
 } from "./fingerprint.ts";
 
 export type ToolsetTransitionClass =
@@ -16,7 +17,7 @@ export type ToolsetTransitionClass =
 export type ToolsetSnapshot = {
 	count: number;
 	fingerprint: string;
-	tools: ToolFingerprintInput[];
+	tools: CanonicalToolFingerprint[];
 };
 
 export type ToolsetTransition = {
@@ -28,35 +29,6 @@ export type ToolsetTransition = {
 	changed: boolean;
 };
 
-function stableParams(value: unknown): string {
-	if (value === null || typeof value !== "object") {
-		return JSON.stringify(value);
-	}
-	if (Array.isArray(value)) {
-		return `[${value.map((item) => stableParams(item)).join(",")}]`;
-	}
-	const entries = Object.entries(value as Record<string, unknown>).sort(
-		([left], [right]) => left.localeCompare(right),
-	);
-	return `{${entries
-		.map(([key, val]) => `${JSON.stringify(key)}:${stableParams(val)}`)
-		.join(",")}}`;
-}
-
-function toolIdentityKey(tool: ToolFingerprintInput): string {
-	return tool.name;
-}
-
-function toolContentKey(tool: ToolFingerprintInput): {
-	description: string;
-	parameters: string;
-} {
-	return {
-		description: tool.description ?? "",
-		parameters: stableParams(tool.parameters ?? null),
-	};
-}
-
 export function captureActiveToolset(
 	pi: ExtensionAPI,
 ): ToolsetSnapshot | undefined {
@@ -65,15 +37,17 @@ export function captureActiveToolset(
 		const tools = pi
 			.getAllTools()
 			.filter((tool) => active.has(tool.name))
-			.map((tool) => ({
-				name: tool.name,
-				description: tool.description,
-				parameters: tool.parameters,
-			}))
+			.map((tool) =>
+				canonicalizeToolParts({
+					name: tool.name,
+					description: tool.description,
+					parameters: tool.parameters,
+				}),
+			)
 			.sort((left, right) => left.name.localeCompare(right.name));
 		return {
 			count: tools.length,
-			fingerprint: fingerprintToolset(tools),
+			fingerprint: fingerprintCanonicalToolset(tools),
 			tools,
 		};
 	} catch {
@@ -108,11 +82,9 @@ export function classifyToolsetTransition(
 	}
 
 	const previousByName = new Map(
-		previous.tools.map((tool) => [toolIdentityKey(tool), tool]),
+		previous.tools.map((tool) => [tool.name, tool]),
 	);
-	const nextByName = new Map(
-		next.tools.map((tool) => [toolIdentityKey(tool), tool]),
-	);
+	const nextByName = new Map(next.tools.map((tool) => [tool.name, tool]));
 
 	let addedCount = 0;
 	let removedCount = 0;
@@ -129,11 +101,9 @@ export function classifyToolsetTransition(
 	for (const [name, nextTool] of nextByName) {
 		const previousTool = previousByName.get(name);
 		if (!previousTool) continue;
-		const prevContent = toolContentKey(previousTool);
-		const nextContent = toolContentKey(nextTool);
-		if (prevContent.parameters !== nextContent.parameters) {
+		if (previousTool.parameters !== nextTool.parameters) {
 			schemaChanged = true;
-		} else if (prevContent.description !== nextContent.description) {
+		} else if (previousTool.description !== nextTool.description) {
 			descriptionChanged = true;
 		}
 	}

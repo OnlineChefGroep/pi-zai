@@ -7,7 +7,7 @@
 	"author": "Online Chef Groep",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/onlinechefgroep/pi-zai.git"
+		"url": "https://github.com/OnlineChefGroep/pi-zai"
 	},
 	"keywords": [
 		"pi",

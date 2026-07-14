@@ -4,6 +4,12 @@ import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 
 export type PromptStabilityMode = "off" | "observe" | "safe";
 export type SessionAffinityMode = "off" | "observe" | "experimental";
+export type AdaptiveToolsMode =
+	| "off"
+	| "observe"
+	| "manual"
+	| "adaptive"
+	| "strict";
 export type MetricsMode = "off" | "memory" | "local";
 export type TelemetryMode = "off" | "aggregate";
 
@@ -23,6 +29,14 @@ export interface ZaiTelemetrySettings {
 	ingestUrl?: string;
 }
 
+export interface ZaiAdaptiveToolsSettings {
+	mode?: AdaptiveToolsMode;
+	maxInitialTools?: number;
+	stickyLoadedTools?: boolean;
+	alwaysActive?: string[];
+	groups?: Record<string, string[]>;
+}
+
 export interface ZaiSettings {
 	/**
 	 * Optional override for Pi's native Z.AI preserved-thinking behavior.
@@ -33,6 +47,7 @@ export interface ZaiSettings {
 	statusTpsAvg?: boolean;
 	promptStability?: ZaiPromptStabilitySettings;
 	sessionAffinity?: SessionAffinityMode;
+	adaptiveTools?: ZaiAdaptiveToolsSettings;
 	metrics?: ZaiMetricsSettings;
 	telemetry?: ZaiTelemetrySettings;
 }
@@ -44,6 +59,15 @@ export interface ZaiMetricsConfig {
 	maxDatabaseBytes: number;
 }
 
+export interface ZaiAdaptiveToolsConfig {
+	mode: AdaptiveToolsMode;
+	maxInitialTools: number;
+	stickyLoadedTools: boolean;
+	alwaysActive: string[];
+	groups: Record<string, string[]>;
+	unsupportedMode: boolean;
+}
+
 export interface ZaiConfig {
 	/** Undefined means: preserve Pi's native payload unchanged. */
 	preserveThinking: boolean | undefined;
@@ -51,6 +75,7 @@ export interface ZaiConfig {
 	statusTpsAvg: boolean;
 	promptStabilityMode: PromptStabilityMode;
 	sessionAffinity: SessionAffinityMode;
+	adaptiveTools: ZaiAdaptiveToolsConfig;
 	metrics: ZaiMetricsConfig;
 	telemetryMode: TelemetryMode;
 	telemetryIngestUrl?: string;
@@ -73,6 +98,21 @@ const SESSION_AFFINITY_MODES = new Set<SessionAffinityMode>([
 	"observe",
 	"experimental",
 ]);
+const ADAPTIVE_TOOLS_MODES = new Set<AdaptiveToolsMode>([
+	"off",
+	"observe",
+	"manual",
+	"adaptive",
+	"strict",
+]);
+const DEFAULT_ALWAYS_ACTIVE = [
+	"read",
+	"grep",
+	"find",
+	"ls",
+	"zai_load_tools",
+] as const;
+
 const METRICS_MODES = new Set<MetricsMode>(["off", "memory", "local"]);
 const TELEMETRY_MODES = new Set<TelemetryMode>(["off", "aggregate"]);
 
@@ -168,6 +208,41 @@ function loadTelemetryConfig(settings: ZaiSettings | undefined): {
 	};
 }
 
+function loadAdaptiveToolsConfig(
+	settings: ZaiSettings | undefined,
+): ZaiAdaptiveToolsConfig {
+	const adaptive = settings?.adaptiveTools;
+	const rawMode = parseEnum(adaptive?.mode, ADAPTIVE_TOOLS_MODES, "off");
+	// 0.5.0 ships off|observe|manual. adaptive/strict are accepted but unsupported.
+	const unsupportedMode = rawMode === "adaptive" || rawMode === "strict";
+	const mode: AdaptiveToolsMode = unsupportedMode ? "observe" : rawMode;
+	const alwaysActive =
+		Array.isArray(adaptive?.alwaysActive) && adaptive.alwaysActive.length > 0
+			? adaptive.alwaysActive.filter(
+					(name): name is string =>
+						typeof name === "string" && name.trim().length > 0,
+				)
+			: [...DEFAULT_ALWAYS_ACTIVE];
+	const groups: Record<string, string[]> = {};
+	if (adaptive?.groups && typeof adaptive.groups === "object") {
+		for (const [group, tools] of Object.entries(adaptive.groups)) {
+			if (!Array.isArray(tools)) continue;
+			groups[group] = tools.filter(
+				(name): name is string =>
+					typeof name === "string" && name.trim().length > 0,
+			);
+		}
+	}
+	return {
+		mode,
+		maxInitialTools: parsePositiveInt(adaptive?.maxInitialTools, 8),
+		stickyLoadedTools: adaptive?.stickyLoadedTools ?? true,
+		alwaysActive,
+		groups,
+		unsupportedMode,
+	};
+}
+
 export function loadZaiConfig(cwd = process.cwd()): ZaiConfig {
 	const settings = readZaiSettingsSection(cwd);
 	const telemetry = loadTelemetryConfig(settings);
@@ -188,6 +263,7 @@ export function loadZaiConfig(cwd = process.cwd()): ZaiConfig {
 			SESSION_AFFINITY_MODES,
 			"off",
 		),
+		adaptiveTools: loadAdaptiveToolsConfig(settings),
 		metrics: loadMetricsConfig(settings),
 		telemetryMode: telemetry.mode,
 		telemetryIngestUrl: telemetry.ingestUrl,

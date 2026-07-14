@@ -17,6 +17,20 @@ const SESSION_AFFINITY_MODES = new Set([
     "observe",
     "experimental",
 ]);
+const ADAPTIVE_TOOLS_MODES = new Set([
+    "off",
+    "observe",
+    "manual",
+    "adaptive",
+    "strict",
+]);
+const DEFAULT_ALWAYS_ACTIVE = [
+    "read",
+    "grep",
+    "find",
+    "ls",
+    "zai_load_tools",
+];
 const METRICS_MODES = new Set(["off", "memory", "local"]);
 const TELEMETRY_MODES = new Set(["off", "aggregate"]);
 function readSettingsFile(path) {
@@ -86,6 +100,32 @@ function loadTelemetryConfig(settings) {
         ingestUrl,
     };
 }
+function loadAdaptiveToolsConfig(settings) {
+    const adaptive = settings?.adaptiveTools;
+    const rawMode = parseEnum(adaptive?.mode, ADAPTIVE_TOOLS_MODES, "off");
+    // 0.5.0 ships off|observe|manual. adaptive/strict are accepted but unsupported.
+    const unsupportedMode = rawMode === "adaptive" || rawMode === "strict";
+    const mode = unsupportedMode ? "observe" : rawMode;
+    const alwaysActive = Array.isArray(adaptive?.alwaysActive) && adaptive.alwaysActive.length > 0
+        ? adaptive.alwaysActive.filter((name) => typeof name === "string" && name.trim().length > 0)
+        : [...DEFAULT_ALWAYS_ACTIVE];
+    const groups = {};
+    if (adaptive?.groups && typeof adaptive.groups === "object") {
+        for (const [group, tools] of Object.entries(adaptive.groups)) {
+            if (!Array.isArray(tools))
+                continue;
+            groups[group] = tools.filter((name) => typeof name === "string" && name.trim().length > 0);
+        }
+    }
+    return {
+        mode,
+        maxInitialTools: parsePositiveInt(adaptive?.maxInitialTools, 8),
+        stickyLoadedTools: adaptive?.stickyLoadedTools ?? true,
+        alwaysActive,
+        groups,
+        unsupportedMode,
+    };
+}
 export function loadZaiConfig(cwd = process.cwd()) {
     const settings = readZaiSettingsSection(cwd);
     const telemetry = loadTelemetryConfig(settings);
@@ -97,6 +137,7 @@ export function loadZaiConfig(cwd = process.cwd()) {
         statusTpsAvg: settings?.statusTpsAvg ?? false,
         promptStabilityMode: parseEnum(settings?.promptStability?.mode, PROMPT_STABILITY_MODES, "observe"),
         sessionAffinity: parseEnum(settings?.sessionAffinity, SESSION_AFFINITY_MODES, "off"),
+        adaptiveTools: loadAdaptiveToolsConfig(settings),
         metrics: loadMetricsConfig(settings),
         telemetryMode: telemetry.mode,
         telemetryIngestUrl: telemetry.ingestUrl,

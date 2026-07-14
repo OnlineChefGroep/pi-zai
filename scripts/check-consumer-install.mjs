@@ -49,10 +49,7 @@ try {
 		packageRoot,
 	);
 	const [packResult] = JSON.parse(packOutput);
-	assert.ok(
-		packResult?.filename,
-		"npm pack did not return a tarball filename",
-	);
+	assert.ok(packResult?.filename, "npm pack did not return a tarball filename");
 
 	const tarballPath = join(packDirectory, packResult.filename);
 	const consumerManifest = {

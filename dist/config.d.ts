@@ -16,6 +16,10 @@ export interface ZaiTelemetrySettings {
     ingestUrl?: string;
 }
 export interface ZaiSettings {
+    /**
+     * Optional override for Pi's native Z.AI preserved-thinking behavior.
+     * Omit to leave the upstream request payload unchanged.
+     */
     preserveThinking?: boolean;
     statusTps?: boolean;
     statusTpsAvg?: boolean;
@@ -31,7 +35,8 @@ export interface ZaiMetricsConfig {
     maxDatabaseBytes: number;
 }
 export interface ZaiConfig {
-    preserveThinking: boolean;
+    /** Undefined means: preserve Pi's native payload unchanged. */
+    preserveThinking: boolean | undefined;
     statusTps: boolean;
     statusTpsAvg: boolean;
     promptStabilityMode: PromptStabilityMode;

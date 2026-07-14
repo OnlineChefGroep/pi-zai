@@ -1,5 +1,4 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { Model } from "@earendil-works/pi-ai";
 import type {
 	ExtensionAPI,
 	ExtensionCommandContext,
@@ -18,6 +17,7 @@ import {
 	readPiRetrySettings,
 } from "../resilience.ts";
 import { inferEndpoint, sessionState } from "../state.ts";
+import type { ZaiModel } from "../zai-model.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
 import {
 	describeThinkingPayload,
@@ -56,14 +56,14 @@ function statusIcon(status: CheckStatus): string {
 }
 
 /** GLM-5.2 is the only Z.AI model exposing reasoning_effort, so it is the only one with a thinkingLevelMap. */
-function isReasoningEffortModel(model: Model<any> | undefined): boolean {
+function isReasoningEffortModel(model: ZaiModel | undefined): boolean {
 	return (
 		(model?.compat as { supportsReasoningEffort?: boolean } | undefined)
 			?.supportsReasoningEffort === true
 	);
 }
 
-function glm52ThinkingMapOk(model: Model<any> | undefined): boolean {
+function glm52ThinkingMapOk(model: ZaiModel | undefined): boolean {
 	if (!model?.thinkingLevelMap) return false;
 	const map = model.thinkingLevelMap;
 	return (
@@ -75,7 +75,7 @@ function glm52ThinkingMapOk(model: Model<any> | undefined): boolean {
 	);
 }
 
-function hasPlatformPricing(model: Model<any> | undefined): boolean {
+function hasPlatformPricing(model: ZaiModel | undefined): boolean {
 	if (!model) return false;
 	const { input, output } = model.cost;
 	return input > 0 || output > 0;
@@ -83,7 +83,7 @@ function hasPlatformPricing(model: Model<any> | undefined): boolean {
 
 async function runNetworkProbe(
 	ctx: ExtensionCommandContext,
-	model: Model<any>,
+	model: ZaiModel,
 ): Promise<DoctorCheck> {
 	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
 	if (!auth.ok || !auth.apiKey) {
@@ -131,7 +131,7 @@ async function runNetworkProbe(
 
 async function runConnectionStabilityProbe(
 	ctx: ExtensionCommandContext,
-	model: Model<any>,
+	model: ZaiModel,
 ): Promise<DoctorCheck> {
 	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
 	if (!auth.ok || !auth.apiKey) {

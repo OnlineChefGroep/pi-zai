@@ -1,5 +1,5 @@
 import type { Usage } from "@earendil-works/pi-ai";
-import { type Model } from "@earendil-works/pi-ai/compat";
+import type { ZaiModel } from "../zai-model.ts";
 export type CacheSegmentKey = {
     provider: string;
     endpoint: string;
@@ -54,15 +54,15 @@ export declare function computeCacheRatios(usage: Pick<Usage, "input" | "cacheRe
     hitRatio: number;
     missRatio: number;
 };
-export declare function estimateUsageCost(model: Model<any>, usage: Usage): number;
-export declare function estimateCacheSavings(model: Model<any>, usage: Usage): number;
-export declare function createUsageSnapshot(model: Model<any>, usage: Usage): CacheUsageSnapshot;
+export declare function estimateUsageCost(model: ZaiModel, usage: Usage): number;
+export declare function estimateCacheSavings(model: ZaiModel, usage: Usage): number;
+export declare function createUsageSnapshot(model: ZaiModel, usage: Usage): CacheUsageSnapshot;
 export declare class CacheMetricsStore {
     private stats;
     reset(segment: CacheSegmentKey, reason?: string): SessionCacheStats;
     get(): SessionCacheStats | undefined;
     clear(): void;
-    record(model: Model<any>, usage: Usage): SessionCacheStats | undefined;
+    record(model: ZaiModel, usage: Usage): SessionCacheStats | undefined;
     markCompaction(): void;
     updateSegment(segment: CacheSegmentKey, reason: string): SessionCacheStats;
 }

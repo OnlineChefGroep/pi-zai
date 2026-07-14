@@ -1,10 +1,10 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { Model } from "@earendil-works/pi-ai";
 import type {
 	EventBus,
 	ExtensionAPI,
 	ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
+import type { ZaiModel } from "../src/zai-model.ts";
 
 type Handler = (
 	event: unknown,
@@ -29,7 +29,7 @@ export type MockExtensionApi = ExtensionAPI & {
 	commandCalls: RegisteredCommand[];
 };
 
-export function createZaiModel(): Model<any> {
+export function createZaiModel(): ZaiModel {
 	return {
 		id: "glm-5.2",
 		name: "GLM 5.2",
@@ -97,7 +97,7 @@ export function createExtensionContext(
 
 export function createMockExtensionApi(options: {
 	cwd: string;
-	model?: Model<any>;
+	model?: ZaiModel;
 }): MockExtensionApi {
 	const handlers = new Map<string, Handler[]>();
 	const providerCalls = {

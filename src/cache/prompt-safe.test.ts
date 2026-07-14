@@ -33,6 +33,7 @@ describe("applySafePromptNormalization", () => {
 		].join("\n");
 		const once = applySafePromptNormalization(prompt);
 		expect(once).toBeDefined();
-		expect(applySafePromptNormalization(once!)).toBeUndefined();
+		if (!once) return;
+		expect(applySafePromptNormalization(once)).toBeUndefined();
 	});
 });

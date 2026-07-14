@@ -20,7 +20,7 @@ export function inferEndpoint(provider, baseUrl) {
 export function newSessionAffinityId() {
     return `pi-${randomUUID()}`;
 }
-export function createZaiSessionState(preserveThinking = false) {
+export function createZaiSessionState(preserveThinking) {
     return {
         preserveThinking,
         endpoint: "unknown",

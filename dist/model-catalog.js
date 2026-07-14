@@ -1,12 +1,11 @@
 /** Verified against https://docs.z.ai/guides/overview/pricing (USD per 1M tokens). */
 export const PLATFORM_BASE_URL = "https://api.z.ai/api/paas/v4";
-/** `null` hides Pi-only levels that Z.AI does not expose (off/high/max are the native efforts). */
+/** Keep this aligned with Pi's native GLM-5.2 catalog. */
 export const GLM52_THINKING_LEVEL_MAP = {
     minimal: null,
-    low: null,
-    medium: null,
+    low: "high",
+    medium: "high",
     high: "high",
-    xhigh: "max",
     max: "max",
 };
 const BASE_ZAI_COMPAT = {
@@ -14,20 +13,8 @@ const BASE_ZAI_COMPAT = {
     supportsDeveloperRole: false,
     thinkingFormat: "zai",
 };
-function withPreserveThinking(model, preserveThinking) {
-    if (!preserveThinking || !model.compat)
-        return model;
-    return {
-        ...model,
-        compat: {
-            ...model.compat,
-            zaiPreserveThinking: true,
-        },
-    };
-}
-export function buildPlatformModelCatalog(options = {}) {
-    const preserveThinking = options.preserveThinking === true;
-    const models = [
+export function buildPlatformModelCatalog(_options = {}) {
+    return [
         {
             id: "glm-5.2",
             name: "GLM-5.2",
@@ -127,6 +114,5 @@ export function buildPlatformModelCatalog(options = {}) {
             },
         },
     ];
-    return models.map((model) => withPreserveThinking(model, preserveThinking));
 }
 //# sourceMappingURL=model-catalog.js.map

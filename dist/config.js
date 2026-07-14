@@ -90,7 +90,9 @@ export function loadZaiConfig(cwd = process.cwd()) {
     const settings = readZaiSettingsSection(cwd);
     const telemetry = loadTelemetryConfig(settings);
     return {
-        preserveThinking: settings?.preserveThinking ?? false,
+        // Undefined deliberately means no override: Pi currently emits
+        // clear_thinking=false for enabled native Z.AI thinking.
+        preserveThinking: settings?.preserveThinking,
         statusTps: settings?.statusTps ?? true,
         statusTpsAvg: settings?.statusTpsAvg ?? false,
         promptStabilityMode: parseEnum(settings?.promptStability?.mode, PROMPT_STABILITY_MODES, "observe"),

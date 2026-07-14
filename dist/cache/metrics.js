@@ -52,7 +52,7 @@ export function computeCacheRatios(usage) {
     }
     return {
         hitRatio: usage.cacheRead / totalPrompt,
-        missRatio: usage.input / totalPrompt,
+        missRatio: (usage.input + usage.cacheWrite) / totalPrompt,
     };
 }
 export function estimateUsageCost(model, usage) {
@@ -126,6 +126,12 @@ export class CacheMetricsStore {
     record(model, usage) {
         if (!this.stats)
             return undefined;
+        const promptTokens = usage.input + usage.cacheRead + usage.cacheWrite;
+        // Connection failures and local command responses can carry an all-zero
+        // usage object. They are not provider cache samples and must not replace
+        // the last successful request or inflate the request count.
+        if (promptTokens <= 0)
+            return this.stats;
         const snapshot = createUsageSnapshot(model, usage);
         this.stats.last = snapshot;
         const rolling = this.stats.rolling;

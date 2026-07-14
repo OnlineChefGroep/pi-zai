@@ -1,5 +1,5 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, Model, Usage } from "@earendil-works/pi-ai";
+import type { AssistantMessage, Usage } from "@earendil-works/pi-ai";
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import {
 	isCodingPlanProvider,
@@ -10,6 +10,7 @@ import {
 import { endpointLabel } from "../cache/metrics.ts";
 import type { ZaiConfig } from "../config.ts";
 import { formatPiCredentialSource } from "../credentials.ts";
+import type { ZaiModel } from "../zai-model.ts";
 
 export type SessionUsageTotals = {
 	input: number;
@@ -25,7 +26,7 @@ type ZaiOpenAICompat = {
 };
 
 export function getZaiCompat(
-	model: Model<any> | undefined,
+	model: ZaiModel | undefined,
 ): ZaiOpenAICompat | undefined {
 	return model?.compat as ZaiOpenAICompat | undefined;
 }
@@ -43,14 +44,14 @@ export function formatDollarCost(amount: number): string {
 	return `$${amount.toFixed(4)}`;
 }
 
-export function getEndpointLabel(model: Model<any>): string {
+export function getEndpointLabel(model: ZaiModel): string {
 	return endpointLabel(model.provider, model.baseUrl);
 }
 
 export function describeClearThinking(
 	config: ZaiConfig,
 	thinkingLevel: ThinkingLevel,
-	model: Model<any> | undefined,
+	model: ZaiModel | undefined,
 ): string {
 	if (!model?.reasoning) {
 		return "n/a (model has no reasoning)";
@@ -80,7 +81,7 @@ export function describePreservedThinking(config: ZaiConfig): string {
 export function describeThinkingPayload(
 	config: ZaiConfig,
 	thinkingLevel: ThinkingLevel,
-	model: Model<any> | undefined,
+	model: ZaiModel | undefined,
 ): string {
 	if (!model?.reasoning) {
 		return "thinking disabled (non-reasoning model)";
@@ -153,11 +154,11 @@ export function formatCredentialSource(
 	return formatPiCredentialSource(provider, ctx.modelRegistry);
 }
 
-export function isSubscriptionManaged(model: Model<any> | undefined): boolean {
+export function isSubscriptionManaged(model: ZaiModel | undefined): boolean {
 	return model !== undefined && isCodingPlanProvider(model.provider);
 }
 
-export function isEstimatedCost(model: Model<any> | undefined): boolean {
+export function isEstimatedCost(model: ZaiModel | undefined): boolean {
 	return model !== undefined && isPlatformProvider(model.provider);
 }
 
@@ -176,7 +177,7 @@ export function formatUsageLine(usage: Usage): string {
 
 export function requireZaiModel(
 	ctx: ExtensionCommandContext,
-): { model: Model<any> } | { error: string } {
+): { model: ZaiModel } | { error: string } {
 	if (!ctx.model) {
 		return { error: "No model selected. Choose a Z.AI model first." };
 	}

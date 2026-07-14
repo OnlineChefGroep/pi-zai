@@ -1,5 +1,5 @@
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, Model } from "@earendil-works/pi-ai";
+import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { clampThinkingLevel } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import {
@@ -53,6 +53,7 @@ import {
 	isTelemetryUploadEnabled,
 	syncPendingTelemetry,
 } from "./telemetry/sync.ts";
+import type { ZaiModel } from "./zai-model.ts";
 
 export { loadZaiConfig, type ZaiConfig } from "./config.ts";
 export { formatPiCredentialSource } from "./credentials.ts";
@@ -83,7 +84,7 @@ const EXTENSION_VERSION = "0.3.0";
 
 function clampThinkingForModel(
 	pi: ExtensionAPI,
-	model: Model<any> | undefined,
+	model: ZaiModel | undefined,
 ): void {
 	if (!model?.reasoning) return;
 	const current = pi.getThinkingLevel();
@@ -94,7 +95,7 @@ function clampThinkingForModel(
 }
 
 function updateSessionFromModel(
-	model: Model<any> | undefined,
+	model: ZaiModel | undefined,
 	thinkingLevel: ReturnType<ExtensionAPI["getThinkingLevel"]>,
 ): void {
 	if (!model) {
@@ -113,7 +114,7 @@ function updateSessionFromModel(
 }
 
 function updateCacheSegment(
-	model: Model<any>,
+	model: ZaiModel,
 	systemPrompt: string,
 	tools: { name: string }[],
 ): void {

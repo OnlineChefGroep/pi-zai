@@ -140,6 +140,8 @@ export function formatBenchmarkGatesSummary(
 		if (sorted.length % 2 === 1) return sorted[middle] ?? 0;
 		return ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
 	};
+	const cacheHitRatios = (runs: typeof completed): number[] =>
+		runs.flatMap((run) => (run.report ? [run.report.cache.cacheHitRatio] : []));
 	const scenarios = new Set(completed.map((run) => run.scenario));
 	for (const scenario of scenarios) {
 		const affinityRuns = completed.filter(
@@ -149,12 +151,8 @@ export function formatBenchmarkGatesSummary(
 			(run) => run.variant === "A1" && run.scenario === scenario,
 		);
 		if (affinityRuns.length === 0 || baselineRuns.length === 0) continue;
-		const a3Median = median(
-			affinityRuns.map((run) => run.report!.cache.cacheHitRatio),
-		);
-		const a1Median = median(
-			baselineRuns.map((run) => run.report!.cache.cacheHitRatio),
-		);
+		const a3Median = median(cacheHitRatios(affinityRuns));
+		const a1Median = median(cacheHitRatios(baselineRuns));
 		const gapPp = Math.round((a3Median - a1Median) * 100);
 		lines.push(
 			"",

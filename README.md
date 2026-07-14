@@ -11,7 +11,7 @@
 
 # pi-zai
 
-A Pi extension for running Z.AI with visible cache behavior, native thinking controls, and local operator diagnostics.
+A Pi extension for running Z.AI with visible cache behavior, native thinking diagnostics, and local operator metrics.
 
 Pi already owns the agent loop, tools, sessions, streaming, and Z.AI provider. **pi-zai hooks into that existing path.** It does not proxy chat traffic, replace Pi's runtime, or create a second model client.
 
@@ -42,19 +42,19 @@ Credentials stay in Pi's normal credential flow: `/login`, `auth.json`, `models.
 |---|---|---|
 | Agent runtime | Pi | Still Pi |
 | Provider and streaming | Pi's native Z.AI provider | Still Pi's native provider |
-| Thinking UI | Pi `off` / `high` / `max` | Mapped to the Z.AI request payload |
-| Cache visibility | Usage fields are available internally | Hit ratios, segment fingerprints, and recommendations |
+| Thinking | Pi selects and maps the level | Actual request fields are shown; optional explicit override only |
+| Cache visibility | Usage fields are available internally | Full Z.AI session totals plus current-segment diagnostics |
 | Diagnostics | General provider errors | `/zai-doctor`, transport summaries, retry guidance |
-| Usage | Per-response usage | Session totals, Coding Plan quota, Platform estimates |
+| Usage | Per-response usage and Pi Session Info | Z.AI-scoped totals, Coding Plan quota, Platform estimates |
 | History | Session-scoped | Privacy-reduced local SQLite metrics |
 
 ## Operator commands
 
 | Command | Purpose |
 |---|---|
-| `/zai` | Provider, endpoint, model, thinking payload, cache, throughput, tools, and session usage |
-| `/zai-cache` | Cache hit ratios, prompt segments, fingerprints, and recommendations |
-| `/zai-usage` | Session token totals, Coding Plan quota, or Platform cost estimates |
+| `/zai` | Provider, endpoint, model, actual thinking payload, cache, throughput, tools, and Z.AI session usage |
+| `/zai-cache` | Current cache segment, hit/miss ratios, fingerprints, and recommendations |
+| `/zai-usage` | Z.AI session token totals, Coding Plan quota, or Platform cost estimates |
 | `/zai-doctor` | Integration checks and optional connectivity/stability probes |
 | `/zai-transport` | Local latency and controlled error-category summaries |
 | `/zai-data` | Inspect, export, vacuum, or wipe local metrics |
@@ -63,19 +63,19 @@ Credentials stay in Pi's normal credential flow: `/login`, `auth.json`, `models.
 
 [Full command reference →](docs/commands.md)
 
-## Native thinking, explicit request behavior
+## Native thinking, visible request behavior
 
 pi-zai uses Pi's own thinking selector. There is no second `/zai-thinking` state to keep in sync.
 
-For GLM-5.2, Pi's visible levels are translated in `before_provider_request`:
+For the current Pi GLM-5.2 catalog:
 
 ```text
-Pi off   → thinking disabled
-Pi high  → thinking enabled, reasoning_effort high
-Pi max   → thinking enabled, reasoning_effort max
+Pi off                 → thinking disabled
+Pi low / medium / high → reasoning_effort high
+Pi max                 → reasoning_effort max
 ```
 
-Historical reasoning is not replayed by default: `clear_thinking=true`. Preserving earlier reasoning remains an explicit advanced opt-in.
+Current Pi releases send `clear_thinking=false` while Z.AI thinking is enabled. pi-zai now leaves that native payload unchanged by default. An explicit `preserveThinking: false` setting can force `clear_thinking=true`, but this may reduce reasoning continuity and cache reuse in long coding/tool sessions.
 
 [Thinking details →](docs/thinking.md)
 
@@ -91,9 +91,17 @@ The chat request still follows the normal Pi route:
 You → Pi agent runtime → Pi native Z.AI provider → Z.AI API
 ```
 
-pi-zai adds lifecycle hooks for request shaping, cache analysis, headers, diagnostics, and local metrics. It does not upload prompts or completions through a separate service.
+pi-zai adds lifecycle hooks for request inspection, optional explicit policy overrides, cache analysis, headers, diagnostics, and local metrics. It does not upload prompts or completions through a separate service.
 
 [Architecture →](docs/architecture.md)
+
+## Cache scopes
+
+Pi's Session Info shows the complete session across all models and providers. `/zai` scans that session but includes Z.AI providers only. `/zai-cache` is intentionally narrower: it shows the current provider/model/system-prompt/toolset segment and resets when one of those boundaries changes.
+
+This distinction prevents a model switch, extension reload, or new prompt/tool fingerprint from being presented as one continuous cache population. All-zero usage records from connection failures are ignored as cache samples.
+
+[Cache optimization →](docs/cache-optimization.md)
 
 ## Local by default
 
@@ -123,7 +131,6 @@ Anonymous aggregate telemetry exists as an opt-in path and is off by default. It
 ```json
 {
   "zai": {
-    "preserveThinking": false,
     "sessionAffinity": "off",
     "promptStability": { "mode": "observe" },
     "metrics": { "mode": "local" },
@@ -134,7 +141,7 @@ Anonymous aggregate telemetry exists as an opt-in path and is off by default. It
 
 | Setting | Default | Meaning |
 |---|---:|---|
-| `preserveThinking` | `false` | Keep `clear_thinking=true` unless explicitly changed |
+| `preserveThinking` | omitted | Leave Pi's native request unchanged; `true` or `false` are explicit overrides |
 | `metrics.mode` | `local` | `off`, in-memory, or bounded SQLite storage |
 | `promptStability.mode` | `observe` | Measure stable and volatile prompt sections without rewriting |
 | `sessionAffinity` | `off` | Experimental `X-Session-Id` support when enabled |

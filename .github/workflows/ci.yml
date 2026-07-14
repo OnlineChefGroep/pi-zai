@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   test:
@@ -18,65 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref }}
-          persist-credentials: true
-      # BEGIN TEMPORARY V040 APPLY STEP
-      - name: Apply validated v0.4.0 hardening
-        if: github.event_name == 'pull_request' && github.head_ref == 'release/v0.4.0-metrics-hardening'
-        shell: bash
-        run: |
-          set +e
-          python3 <<'PY'
-          from pathlib import Path
-          import traceback
-
-          try:
-              docs = Path('docs/commands.md')
-              docs_text = docs.read_text()
-              docs_text = docs_text.replace(
-                  '- output and turn throughput',
-                  '- throughput (tok/s)',
-              )
-              docs_text = docs_text.replace(
-                  'A0–A3 cache benchmark manifest and local run tracking.',
-                  'A0–A3 cache benchmark harness and local run tracking.',
-              )
-              docs.write_text(docs_text)
-
-              source = Path('.github/workflows/apply-v040-hardening.yml').read_text()
-              raw = source.split("          python3 <<'PY'\n", 1)[1].split("\n          PY", 1)[0]
-              embedded = "\n".join(
-                  line[10:] if line.startswith("          ") else line
-                  for line in raw.splitlines()
-              )
-              exec(embedded, {'__name__': '__main__'})
-
-              ci = Path('.github/workflows/ci.yml')
-              text = ci.read_text()
-              start = text.index('      # BEGIN TEMPORARY V040 APPLY STEP\n')
-              end = text.index('      # END TEMPORARY V040 APPLY STEP\n') + len('      # END TEMPORARY V040 APPLY STEP\n')
-              text = text[:start] + text[end:]
-              text = text.replace('permissions:\n  contents: write', 'permissions:\n  contents: read')
-              text = text.replace('        with:\n          ref: ${{ github.event.pull_request.head.ref || github.ref }}\n          persist-credentials: true\n', '        with:\n          persist-credentials: false\n')
-              ci.write_text(text)
-              Path('.v040-error.txt').unlink(missing_ok=True)
-          except BaseException:
-              Path('.v040-error.txt').write_text(traceback.format_exc())
-              raise
-          PY
-          status=$?
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          if [ "$status" -ne 0 ]; then
-            git add .v040-error.txt
-            git commit -m "chore: capture v0.4.0 bootstrap error"
-            git push origin HEAD:${GITHUB_HEAD_REF}
-            exit "$status"
-          fi
-          git add -A
-          git commit -m "release: prepare v0.4.0"
-          git push origin HEAD:${GITHUB_HEAD_REF}
-      # END TEMPORARY V040 APPLY STEP
+          persist-credentials: false
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22.x'

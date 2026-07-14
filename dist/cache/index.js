@@ -4,4 +4,5 @@ export { formatCacheDiagnostics, formatCacheExplain, formatCacheResetMessage, fo
 export { canonicalizeStablePrefix, canonicalizeTool, fingerprintSystemPrompt, fingerprintText, fingerprintToolset, hashCanonicalText, SHORT_HASH_LENGTH, shortenHash, } from "./fingerprint.js";
 export { buildCacheSegmentKey, CacheMetricsStore, computeCacheRatios, createUsageSnapshot, detectSegmentChange, endpointLabel, estimateCacheSavings, estimateUsageCost, formatSegmentChangeReason, } from "./metrics.js";
 export { buildCacheRecommendations, formatCacheRecommendations, } from "./recommendations.js";
+export { captureActiveToolset, classifyToolsetTransition, } from "./toolset-snapshot.js";
 //# sourceMappingURL=index.js.map

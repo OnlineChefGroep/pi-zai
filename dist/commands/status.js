@@ -1,5 +1,6 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai/compat";
 import { computeCacheRatios } from "../cache/metrics.js";
+import { resolveZaiCapabilities } from "../capabilities.js";
 import { resolvePromptStability } from "../prompt-stability.js";
 import { getToolExecutionTracker, getTpsTracker, sessionState, } from "../state.js";
 import { formatTpsTelemetryLines, formatTurnThroughputLines, } from "../telemetry/tps.js";
@@ -39,6 +40,8 @@ export function registerZaiStatusCommand(pi, deps) {
                 ? computeCacheRatios(lastUsage).hitRatio
                 : cacheStats?.last?.hitRatio;
             const toolStream = getZaiCompat(model)?.zaiToolStream === true ? "enabled" : "disabled";
+            const capabilities = resolveZaiCapabilities(model, config.sessionAffinity);
+            const toolset = sessionState.lastToolsetTransition;
             const sessionCostLabel = sessionTotals.cost > 0
                 ? formatDollarCost(sessionTotals.cost)
                 : model.provider === "zai-platform"
@@ -59,6 +62,12 @@ export function registerZaiStatusCommand(pi, deps) {
                 formatKeyValue("clear_thinking", describeClearThinking(config, thinkingLevel, model)),
                 formatKeyValue("Preserved", describePreservedThinking(config)),
                 formatKeyValue("Tool stream", toolStream),
+                formatKeyValue("API family", capabilities.apiFamily),
+                formatKeyValue("Dynamic tools", capabilities.dynamicToolMode),
+                formatKeyValue("Toolset", toolset
+                    ? `gen ${sessionState.toolsetGeneration}; ${toolset.classification}; ${toolset.nextCount} tools`
+                    : `gen ${sessionState.toolsetGeneration}; pending`),
+                formatKeyValue("Adaptive tools", config.adaptiveTools.mode),
                 formatKeyValue("Credentials", credentialSource),
                 formatKeyValue("Metrics", config.metrics.mode),
                 formatKeyValue("Telemetry", config.telemetryMode),

@@ -66,3 +66,10 @@ export {
 	type CacheRecommendation,
 	formatCacheRecommendations,
 } from "./recommendations.ts";
+export {
+	captureActiveToolset,
+	classifyToolsetTransition,
+	type ToolsetSnapshot,
+	type ToolsetTransition,
+	type ToolsetTransitionClass,
+} from "./toolset-snapshot.ts";

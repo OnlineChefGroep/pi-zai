@@ -2,6 +2,7 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { ExtensionContext, SessionStartEvent, TurnEndEvent } from "@earendil-works/pi-coding-agent";
 import { AttemptTracker } from "./attempt-tracker.ts";
 import { CacheMetricsStore } from "./cache/metrics.ts";
+import type { ToolsetSnapshot, ToolsetTransition } from "./cache/toolset-snapshot.ts";
 import { QueryCorrelation } from "./correlation.ts";
 import type { MetricsStorage } from "./storage/types.ts";
 import { TpsTracker } from "./telemetry/tps.ts";
@@ -30,6 +31,17 @@ export interface ZaiSessionState {
         volatileLineCount: number;
         hasDynamicMarker: boolean;
         systemFingerprint: string | undefined;
+    } | undefined;
+    lastToolsetSnapshot: ToolsetSnapshot | undefined;
+    lastToolsetTransition: (ToolsetTransition & {
+        apiFamily?: string;
+        dynamicToolMode?: string;
+    }) | undefined;
+    toolsetGeneration: number;
+    adaptiveTools: {
+        mode: string;
+        loaderInvocations: number;
+        lastAddedCount: number;
     } | undefined;
 }
 export interface ModelSelectEvent {

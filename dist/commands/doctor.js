@@ -1,6 +1,7 @@
 import { buildCompactionInstructions, ZAI_COMPACTION_SECTIONS, } from "../cache/compaction.js";
 import { canonicalStableSystemPrefix } from "../cache/context-policy.js";
 import { fingerprintToolset } from "../cache/fingerprint.js";
+import { resolveZaiCapabilities } from "../capabilities.js";
 import { formatProbeSummary, formatRecommendedRetrySettingsJson, formatRetrySettingsAdvice, probeChatEndpoint, readPiRetrySettings, } from "../resilience.js";
 import { inferEndpoint, sessionState } from "../state.js";
 import { describeThinkingPayload, formatCredentialSource, getZaiCompat, requireZaiModel, } from "./helpers.js";
@@ -213,8 +214,32 @@ export function registerZaiDoctorCommand(pi, deps) {
                 name: "Cache affinity header",
                 status: config.sessionAffinity === "experimental" ? "pass" : "skip",
                 detail: config.sessionAffinity === "experimental"
-                    ? `X-Session-Id enabled (id ${sessionState.sessionAffinityId.slice(0, 12)}...)`
+                    ? "X-Session-Id enabled (identifier not displayed)"
                     : "X-Session-Id off (set zai.sessionAffinity=experimental to enable)",
+            });
+            const capabilities = resolveZaiCapabilities(thinkingModel ?? ctx.model, config.sessionAffinity);
+            checks.push({
+                name: "Pi compatibility",
+                status: "pass",
+                detail: `API ${capabilities.apiFamily}; dynamic tools ${capabilities.dynamicToolMode}; ownership ${capabilities.providerOwnership}`,
+            });
+            checks.push({
+                name: "Adaptive tools",
+                status: config.adaptiveTools.mode === "off"
+                    ? "skip"
+                    : config.adaptiveTools.unsupportedMode
+                        ? "warn"
+                        : "pass",
+                detail: config.adaptiveTools.unsupportedMode
+                    ? `mode ${config.adaptiveTools.mode} requested but unsupported in 0.5.0; using observe`
+                    : `mode ${config.adaptiveTools.mode}`,
+            });
+            checks.push({
+                name: "Toolset tracking",
+                status: "pass",
+                detail: sessionState.lastToolsetTransition
+                    ? `generation ${sessionState.toolsetGeneration}; last ${sessionState.lastToolsetTransition.classification}; tools ${sessionState.lastToolsetTransition.previousCount} -> ${sessionState.lastToolsetTransition.nextCount}`
+                    : "provider-request boundary armed; no transitions yet",
             });
             checks.push({
                 name: "Streamed usage + cached tokens",

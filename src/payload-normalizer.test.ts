@@ -49,4 +49,40 @@ describe("normalizeZaiThinkingPayload", () => {
 		);
 		expect(result).toBeUndefined();
 	});
+
+	it("preserves tools, tool_choice, tool_stream, and unknown fields", () => {
+		const payload = {
+			thinking: { type: "enabled", clear_thinking: false },
+			tools: [{ type: "function", function: { name: "read" } }],
+			tool_choice: "required",
+			tool_stream: true,
+			future_field: { nested: true },
+		};
+		const result = normalizeZaiThinkingPayload(payload, forceClear);
+		expect(result).toMatchObject({
+			tools: payload.tools,
+			tool_choice: "required",
+			tool_stream: true,
+			future_field: { nested: true },
+			thinking: { type: "enabled", clear_thinking: true },
+		});
+		expect(payload.thinking.clear_thinking).toBe(false);
+	});
+
+	it("fails open on non-object payloads", () => {
+		expect(normalizeZaiThinkingPayload(null, forceClear)).toBeUndefined();
+		expect(normalizeZaiThinkingPayload("x", forceClear)).toBeUndefined();
+	});
+
+	it("returns undefined when preserveThinking is undefined", () => {
+		expect(
+			normalizeZaiThinkingPayload(
+				{
+					thinking: { type: "enabled", clear_thinking: false },
+					tool_choice: { type: "function", function: { name: "read" } },
+				},
+				native,
+			),
+		).toBeUndefined();
+	});
 });

@@ -33,6 +33,10 @@ export function createZaiSessionState(preserveThinking) {
         sessionAffinityId: newSessionAffinityId(),
         activeBenchmarkRunId: undefined,
         promptStability: undefined,
+        lastToolsetSnapshot: undefined,
+        lastToolsetTransition: undefined,
+        toolsetGeneration: 0,
+        adaptiveTools: undefined,
     };
 }
 export const sessionState = createZaiSessionState();

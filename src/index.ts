@@ -2,18 +2,21 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { clampThinkingLevel } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { applyAdaptiveToolsSessionPolicy } from "./adaptive-tools/index.ts";
 import {
 	applyZaiCompactionInstructions,
 	applyZaiTreeSummaryInstructions,
 	buildCacheSegmentKey,
 	canonicalStableSystemPrefix,
+	captureActiveToolset,
+	classifyToolsetTransition,
 	detectSegmentChange,
 	fingerprintSystemPrompt,
-	fingerprintToolset,
 	formatSegmentChangeReason,
 	isZaiModel,
 } from "./cache/index.ts";
 import { applySafePromptNormalization } from "./cache/prompt-safe.ts";
+import { resolveZaiCapabilities } from "./capabilities.ts";
 import {
 	createDefaultZaiCommandDeps,
 	registerZaiCommands,
@@ -21,7 +24,7 @@ import {
 import { loadZaiConfig, type ZaiConfig } from "./config.ts";
 import { fingerprintPayload, hashSessionId } from "./correlation.ts";
 import { formatPiCredentialSource } from "./credentials.ts";
-import { isNativeZaiModel } from "./native-zai.ts";
+import { isManagedZaiModel, isNativeZaiModel } from "./native-zai.ts";
 import { normalizeZaiThinkingPayload } from "./payload-normalizer.ts";
 import { snapshotPromptStability } from "./prompt-stability.ts";
 import {
@@ -116,7 +119,8 @@ function updateSessionFromModel(
 function updateCacheSegment(
 	model: ZaiModel,
 	systemPrompt: string,
-	tools: { name: string }[],
+	toolsetFingerprint: string,
+	extraReasons: string[] = [],
 ): void {
 	const segment = buildCacheSegmentKey({
 		provider: model.provider,
@@ -125,15 +129,47 @@ function updateCacheSegment(
 		systemFingerprint: fingerprintSystemPrompt(
 			canonicalStableSystemPrefix(systemPrompt),
 		),
-		toolsetFingerprint: fingerprintToolset(tools),
+		toolsetFingerprint,
 	});
 	const store = getCacheMetricsStore();
 	const change = detectSegmentChange(store.get()?.segment, segment);
-	if (change.changed) {
-		store.reset(segment, formatSegmentChangeReason(change));
+	if (change.changed || extraReasons.length > 0) {
+		const reasons = [...change.reasons, ...extraReasons];
+		store.reset(segment, formatSegmentChangeReason({ changed: true, reasons }));
 	} else {
 		store.updateSegment(segment, "unchanged");
 	}
+}
+
+function syncToolsetAtProviderBoundary(
+	pi: ExtensionAPI,
+	model: ZaiModel,
+	systemPrompt: string,
+): void {
+	const snapshot = captureActiveToolset(pi);
+	const transition = classifyToolsetTransition(
+		sessionState.lastToolsetSnapshot,
+		snapshot,
+	);
+	const capabilities = resolveZaiCapabilities(model);
+
+	if (transition.changed) {
+		sessionState.toolsetGeneration += 1;
+		updateCacheSegment(model, systemPrompt, snapshot.fingerprint, [
+			`toolset:${transition.classification}`,
+		]);
+	} else if (!getCacheMetricsStore().get()?.segment) {
+		updateCacheSegment(model, systemPrompt, snapshot.fingerprint);
+	} else {
+		updateCacheSegment(model, systemPrompt, snapshot.fingerprint);
+	}
+
+	sessionState.lastToolsetSnapshot = snapshot;
+	sessionState.lastToolsetTransition = {
+		...transition,
+		apiFamily: capabilities.apiFamily,
+		dynamicToolMode: capabilities.dynamicToolMode,
+	};
 }
 
 function classifyTransportError(
@@ -194,6 +230,18 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			resetCorrelationState();
 			sessionState.sessionAffinityId = newSessionAffinityId();
 			sessionState.activeBenchmarkRunId = undefined;
+			sessionState.lastToolsetSnapshot = undefined;
+			sessionState.lastToolsetTransition = undefined;
+			sessionState.toolsetGeneration = 0;
+			sessionState.adaptiveTools = undefined;
+		}
+
+		if (ctx.model && isManagedZaiModel(ctx.model)) {
+			try {
+				applyAdaptiveToolsSessionPolicy(pi, config.adaptiveTools);
+			} catch {
+				// Fail open: never block session start on adaptive tooling.
+			}
 		}
 
 		sessionState.projectId = projectIdForCwd(ctx.cwd);
@@ -300,15 +348,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		getAttemptTracker().prepareQueryAttempt(queryId, turnStartedAt);
 		getTpsTracker().beginTurn(turnStartedAt);
 		getToolExecutionTracker().beginTurn();
-		const activeToolNames = new Set(pi.getActiveTools());
-		const toolsForFingerprint = pi
-			.getAllTools()
-			.filter((tool) => activeToolNames.has(tool.name))
-			.map((tool) => ({
-				name: tool.name,
-				description: tool.description,
-				parameters: tool.parameters,
-			}));
+		const snapshot = captureActiveToolset(pi);
 		let systemPromptForMetrics = event.systemPrompt;
 		if (config.promptStabilityMode === "safe") {
 			const normalized = applySafePromptNormalization(event.systemPrompt);
@@ -316,7 +356,9 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 				systemPromptForMetrics = normalized;
 			}
 		}
-		updateCacheSegment(ctx.model, systemPromptForMetrics, toolsForFingerprint);
+		// Baseline only; authoritative toolset check happens in before_provider_request.
+		updateCacheSegment(ctx.model, systemPromptForMetrics, snapshot.fingerprint);
+		sessionState.lastToolsetSnapshot = snapshot;
 		sessionState.promptStability = snapshotPromptStability(
 			systemPromptForMetrics,
 		);
@@ -426,8 +468,18 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("before_provider_request", async (event, ctx) => {
-		if (!ctx.model || !isNativeZaiModel(ctx.model)) {
+		if (!ctx.model || !isManagedZaiModel(ctx.model)) {
 			return;
+		}
+
+		try {
+			const systemPrompt =
+				sessionState.promptStability !== undefined
+					? ctx.getSystemPrompt()
+					: ctx.getSystemPrompt();
+			syncToolsetAtProviderBoundary(pi, ctx.model, systemPrompt);
+		} catch {
+			// Fail open: keep current segment and continue the request.
 		}
 
 		const { queryId, requestId, attempt } = getQueryCorrelation().nextAttempt();
@@ -446,11 +498,18 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			});
 		}
 
+		const capabilities = resolveZaiCapabilities(
+			ctx.model,
+			config.sessionAffinity,
+		);
+		if (!capabilities.usesZaiThinkingFormat && !isNativeZaiModel(ctx.model)) {
+			return;
+		}
 		return normalizeZaiThinkingPayload(event.payload, config);
 	});
 
 	pi.on("after_provider_response", async (event, ctx) => {
-		if (!ctx.model || !isNativeZaiModel(ctx.model)) return;
+		if (!ctx.model || !isManagedZaiModel(ctx.model)) return;
 		getAttemptTracker().markHeadersReceived();
 		getAttemptTracker().markResponse(
 			event.status,
@@ -462,10 +521,23 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 
 	pi.on("before_provider_headers", async (event) => {
 		if (!isZaiProvider(sessionState.provider)) return;
-		if (config.sessionAffinity === "experimental") {
+
+		const headerNames = Object.keys(event.headers);
+		const hasHeader = (name: string): boolean =>
+			headerNames.some((key) => key.toLowerCase() === name.toLowerCase());
+
+		if (
+			config.sessionAffinity === "experimental" &&
+			!hasHeader("X-Session-Id") &&
+			!hasHeader("x-session-id")
+		) {
 			event.headers["X-Session-Id"] = sessionState.sessionAffinityId;
 		}
-		event.headers["User-Agent"] = `pi-zai/${EXTENSION_VERSION}`;
-		event.headers["Accept-Language"] = "en-US,en";
+		if (!hasHeader("User-Agent")) {
+			event.headers["User-Agent"] = `pi-zai/${EXTENSION_VERSION}`;
+		}
+		if (!hasHeader("Accept-Language")) {
+			event.headers["Accept-Language"] = "en-US,en";
+		}
 	});
 }

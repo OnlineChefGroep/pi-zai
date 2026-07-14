@@ -4,4 +4,5 @@ export { type CacheDiagnosticAction, type CacheDiagnosticsInput, formatCacheDiag
 export { canonicalizeStablePrefix, canonicalizeTool, fingerprintSystemPrompt, fingerprintText, fingerprintToolset, hashCanonicalText, SHORT_HASH_LENGTH, shortenHash, type ToolFingerprintInput, } from "./fingerprint.ts";
 export { buildCacheSegmentKey, CacheMetricsStore, type CacheSegmentKey, type CacheUsageSnapshot, computeCacheRatios, createUsageSnapshot, detectSegmentChange, endpointLabel, estimateCacheSavings, estimateUsageCost, formatSegmentChangeReason, type SegmentChange, type SessionCacheStats, } from "./metrics.ts";
 export { buildCacheRecommendations, type CacheRecommendation, formatCacheRecommendations, } from "./recommendations.ts";
+export { captureActiveToolset, classifyToolsetTransition, type ToolsetSnapshot, type ToolsetTransition, type ToolsetTransitionClass, } from "./toolset-snapshot.ts";
 //# sourceMappingURL=index.d.ts.map

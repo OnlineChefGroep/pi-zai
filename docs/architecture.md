@@ -9,9 +9,12 @@ pi-zai is a **Pi extension** for Z.AI only. It does not replace Pi's agent runti
 ```text
 You  →  Pi (agent, tools, sessions)
          ↓
-       Pi native Z.AI providers (zai, zai-coding-cn, optional zai-platform)
+       Pi native Z.AI providers
+         - zai            → https://api.z.ai/api/coding/paas/v4
+         - zai-coding-cn  → https://open.bigmodel.cn/api/coding/paas/v4
+         - optional zai-platform (models.json)
          ↓
-       Z.AI API
+       Z.AI / BigModel API
          ↑
        pi-zai hooks (cache metrics, request inspection, headers, local SQLite)
 ```
@@ -30,8 +33,8 @@ You  →  Pi (agent, tools, sessions)
 
 1. **`before_agent_start`** — Start attempt timing; fingerprint the stable system-prompt prefix and active tools; optionally normalize an explicitly marked dynamic suffix in `safe` mode.
 2. **Pi provider request builder** — Pi maps its selected thinking level to Z.AI `thinking` and `reasoning_effort`. Current Pi releases use `clear_thinking=false` while thinking is enabled.
-3. **`before_provider_request`** — Fingerprint the completed payload. Leave it unchanged by default; only override `clear_thinking` when `zai.preserveThinking` is explicitly `true` or `false`.
-4. **`before_provider_headers`** — Set `User-Agent: pi-zai/<version>`; optionally add `X-Session-Id` when `sessionAffinity: experimental`.
+3. **`before_provider_request`** — Recapture the active toolset, classify transitions, and rotate the cache segment when tools changed. Leave the payload unchanged by default; only override `clear_thinking` when `zai.preserveThinking` is explicitly `true` or `false`.
+4. **`before_provider_headers`** — Set `User-Agent: pi-zai/<version>`; optionally add `X-Session-Id` when `sessionAffinity: experimental` and no upstream affinity header exists.
 5. **Pi provider stream** — Normal Z.AI traffic. Prompts, reasoning history, tool definitions, and completions travel through Pi's provider directly to Z.AI.
 6. **`after_provider_response`** — Record HTTP status and response-header timing for transport metrics.
 7. **`message_update` / `message_end`** — Track first-token timing, output throughput, and streamed usage.

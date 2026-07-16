@@ -3,6 +3,7 @@ import { loadZaiConfig } from "../config.ts";
 import { formatPiCredentialSource } from "../credentials.ts";
 import { registerZaiBenchmarkCommand } from "./benchmark.ts";
 import { registerZaiCacheCommand } from "./cache.ts";
+import { registerZaiCapabilitiesCommand } from "./capabilities.ts";
 import { registerZaiDataCommand } from "./data.ts";
 import {
 	isPlatformProviderRegistered,
@@ -30,6 +31,7 @@ export function registerZaiCommands(
 	registerZaiDataCommand(pi, deps);
 	registerZaiUsageCommand(pi, deps);
 	registerZaiDoctorCommand(pi, deps);
+	registerZaiCapabilitiesCommand(pi, deps);
 	registerZaiPrivacyCommand(pi, deps);
 	registerZaiTransportCommand(pi);
 	registerZaiBenchmarkCommand(pi, deps);

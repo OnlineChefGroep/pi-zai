@@ -1,6 +1,7 @@
 import { clampThinkingLevel } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { computeCacheRatios } from "../cache/metrics.ts";
+import { resolveZaiCapabilities } from "../capabilities.ts";
 import { resolvePromptStability } from "../prompt-stability.ts";
 import {
 	getToolExecutionTracker,
@@ -79,6 +80,11 @@ export function registerZaiStatusCommand(
 				: cacheStats?.last?.hitRatio;
 			const toolStream =
 				getZaiCompat(model)?.zaiToolStream === true ? "enabled" : "disabled";
+			const capabilities = resolveZaiCapabilities(
+				model,
+				config.sessionAffinity,
+			);
+			const toolset = sessionState.lastToolsetTransition;
 			const sessionCostLabel =
 				sessionTotals.cost > 0
 					? formatDollarCost(sessionTotals.cost)
@@ -113,6 +119,26 @@ export function registerZaiStatusCommand(
 				),
 				formatKeyValue("Preserved", describePreservedThinking(config)),
 				formatKeyValue("Tool stream", toolStream),
+				formatKeyValue("API family", capabilities.apiFamily),
+				formatKeyValue("Dynamic tools", capabilities.dynamicToolMode),
+				formatKeyValue(
+					"Toolset",
+					toolset
+						? `gen ${sessionState.toolsetGeneration}; ${toolset.classification}; ${toolset.nextCount} tools`
+						: `gen ${sessionState.toolsetGeneration}; pending`,
+				),
+				formatKeyValue(
+					"Adaptive tools",
+					config.adaptiveTools.unsupportedMode
+						? `${config.adaptiveTools.requestedMode} → observe`
+						: config.adaptiveTools.mode,
+				),
+				formatKeyValue(
+					"Adaptive observation",
+					sessionState.adaptiveTools?.observation
+						? `${sessionState.adaptiveTools.observation.deferredCount} configured active tools; ~${sessionState.adaptiveTools.observation.estimatedDeferredSchemaBytes} schema bytes`
+						: "none",
+				),
 				formatKeyValue("Credentials", credentialSource),
 				formatKeyValue("Metrics", config.metrics.mode),
 				formatKeyValue("Telemetry", config.telemetryMode),

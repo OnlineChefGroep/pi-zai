@@ -51,21 +51,12 @@ export type ToolFingerprintInput = {
 	parameters?: unknown;
 };
 
-export function canonicalizeTool(tool: ToolFingerprintInput): string {
-	const params =
-		tool.parameters && typeof tool.parameters === "object"
-			? stableJson(tool.parameters)
-			: String(tool.parameters ?? "");
-	return `${tool.name}\n${tool.description ?? ""}\n${params}`;
-}
-
-export function fingerprintToolset(tools: ToolFingerprintInput[]): string {
-	const canonical = tools
-		.map(canonicalizeTool)
-		.sort((a, b) => a.localeCompare(b))
-		.join("\n---\n");
-	return hashCanonicalText(canonical);
-}
+export type CanonicalToolFingerprint = {
+	name: string;
+	description: string;
+	parameters: string;
+	canonical: string;
+};
 
 function stableJson(value: unknown): string {
 	if (value === null || typeof value !== "object") {
@@ -78,4 +69,38 @@ function stableJson(value: unknown): string {
 		([a], [b]) => a.localeCompare(b),
 	);
 	return `{${entries.map(([key, val]) => `${JSON.stringify(key)}:${stableJson(val)}`).join(",")}}`;
+}
+
+export function canonicalizeToolParts(
+	tool: ToolFingerprintInput,
+): CanonicalToolFingerprint {
+	const description = tool.description ?? "";
+	const parameters =
+		tool.parameters && typeof tool.parameters === "object"
+			? stableJson(tool.parameters)
+			: String(tool.parameters ?? "");
+	return {
+		name: tool.name,
+		description,
+		parameters,
+		canonical: `${tool.name}\n${description}\n${parameters}`,
+	};
+}
+
+export function canonicalizeTool(tool: ToolFingerprintInput): string {
+	return canonicalizeToolParts(tool).canonical;
+}
+
+export function fingerprintCanonicalToolset(
+	tools: Pick<CanonicalToolFingerprint, "canonical">[],
+): string {
+	const canonical = tools
+		.map((tool) => tool.canonical)
+		.sort((a, b) => a.localeCompare(b))
+		.join("\n---\n");
+	return hashCanonicalText(canonical);
+}
+
+export function fingerprintToolset(tools: ToolFingerprintInput[]): string {
+	return fingerprintCanonicalToolset(tools.map(canonicalizeToolParts));
 }

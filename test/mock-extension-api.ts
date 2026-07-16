@@ -27,6 +27,7 @@ export type MockExtensionApi = ExtensionAPI & {
 		unregister: string[];
 	};
 	commandCalls: RegisteredCommand[];
+	executeTool(name: string, params?: Record<string, unknown>): Promise<unknown>;
 };
 
 export function createZaiModel(): ZaiModel {
@@ -41,6 +42,22 @@ export function createZaiModel(): ZaiModel {
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: 200000,
 		maxTokens: 16384,
+		compat: {
+			supportsStore: false,
+			supportsDeveloperRole: false,
+			supportsReasoningEffort: true,
+			thinkingFormat: "zai",
+			zaiToolStream: true,
+		} as ZaiModel["compat"],
+	};
+}
+
+/** Pi-native China Coding Plan model (`zai-coding-cn`). */
+export function createZaiCodingCnModel(): ZaiModel {
+	return {
+		...createZaiModel(),
+		provider: "zai-coding-cn",
+		baseUrl: "https://open.bigmodel.cn/api/coding/paas/v4",
 	};
 }
 
@@ -95,7 +112,7 @@ export function createExtensionContext(
 	};
 }
 
-export function createMockExtensionApi(options: {
+export function createMockExtensionApi(_options: {
 	cwd: string;
 	model?: ZaiModel;
 }): MockExtensionApi {
@@ -105,6 +122,16 @@ export function createMockExtensionApi(options: {
 		unregister: [] as string[],
 	};
 	const commandCalls: RegisteredCommand[] = [];
+	const registeredTools: Array<{
+		name: string;
+		description?: string;
+		parameters?: unknown;
+		execute?: (
+			toolCallId: string,
+			params: Record<string, unknown>,
+		) => Promise<unknown> | unknown;
+	}> = [];
+	let activeTools: string[] = ["read", "grep", "find", "ls", "bash"];
 
 	const events = {
 		on: () => () => {},
@@ -137,7 +164,25 @@ export function createMockExtensionApi(options: {
 		registerCommand(name: string, options: { description?: string }) {
 			commandCalls.push({ name, description: options.description });
 		},
-		registerTool() {},
+		registerTool(definition: {
+			name: string;
+			description?: string;
+			parameters?: unknown;
+			execute?: (
+				toolCallId: string,
+				params: Record<string, unknown>,
+			) => Promise<unknown> | unknown;
+		}) {
+			registeredTools.push({
+				name: definition.name,
+				description: definition.description,
+				parameters: definition.parameters,
+				execute: definition.execute,
+			});
+			if (!activeTools.includes(definition.name)) {
+				activeTools = [...activeTools, definition.name];
+			}
+		},
 		registerShortcut() {},
 		registerFlag() {},
 		getFlag: () => undefined,
@@ -150,9 +195,41 @@ export function createMockExtensionApi(options: {
 		getSessionName: () => undefined,
 		setLabel() {},
 		exec: async () => ({ code: 0, stdout: "", stderr: "", killed: false }),
-		getActiveTools: () => [] as string[],
-		getAllTools: () => [],
-		setActiveTools() {},
+		getActiveTools: () => [...activeTools],
+		getAllTools: () => {
+			const builtins = ["read", "grep", "find", "ls", "bash"].map((name) => ({
+				name,
+				description: `${name} tool`,
+				parameters: { type: "object", properties: {} },
+				promptGuidelines: [],
+				sourceInfo: {
+					path: `<builtin:${name}>`,
+					source: "builtin",
+					scope: "temporary",
+					origin: "top-level",
+				},
+			}));
+			const extras = registeredTools.map((tool) => ({
+				name: tool.name,
+				description: tool.description ?? tool.name,
+				parameters: tool.parameters ?? { type: "object", properties: {} },
+				promptGuidelines: [],
+				sourceInfo: {
+					path: "<extension>",
+					source: "extension",
+					scope: "temporary",
+					origin: "top-level",
+				},
+			}));
+			const byName = new Map<string, (typeof builtins)[number]>();
+			for (const tool of [...builtins, ...extras]) {
+				byName.set(tool.name, tool);
+			}
+			return [...byName.values()];
+		},
+		setActiveTools(names: string[]) {
+			activeTools = [...names];
+		},
 		getCommands: () => [],
 		setModel: async () => true,
 		getThinkingLevel: () => "off" as ThinkingLevel,
@@ -164,6 +241,11 @@ export function createMockExtensionApi(options: {
 		providerCalls,
 		commandCalls,
 		trigger: pi.trigger.bind(pi),
+		async executeTool(name: string, params: Record<string, unknown> = {}) {
+			const tool = registeredTools.find((candidate) => candidate.name === name);
+			if (!tool?.execute) throw new Error(`Tool ${name} is not executable`);
+			return tool.execute("test-tool-call", params);
+		},
 	}) as unknown as MockExtensionApi;
 }
 

@@ -11,6 +11,11 @@ Global: `~/.pi/agent/settings.json` (via Pi `getAgentDir()`)
     "statusTps": true,
     "statusTpsAvg": false,
     "sessionAffinity": "off",
+    "adaptiveTools": {
+      "mode": "off",
+      "alwaysActive": ["read", "grep", "find", "ls", "zai_load_tools"],
+      "groups": {}
+    },
     "promptStability": { "mode": "observe" },
     "metrics": {
       "mode": "local",
@@ -29,6 +34,26 @@ Global: `~/.pi/agent/settings.json` (via Pi `getAgentDir()`)
 Project settings override global settings. pi-zai does not read `PI_ZAI_*` environment variables.
 
 How metrics and telemetry fit together: [Architecture](architecture.md). Allowlists and wipe commands: [Security](security.md).
+
+## Adaptive tools (experimental)
+
+Default `mode` is `off`. When enabled, pi-zai can keep a smaller initial active toolset and activate configured groups through `zai_load_tools` using Pi's `setActiveTools()` API.
+
+| Mode | Behavior |
+|------|----------|
+| `off` | Native Pi toolset (default) |
+| `observe` | Estimate deferred-schema impact; do not change active tools |
+| `manual` | Register `zai_load_tools` and activate explicit groups additively |
+| `adaptive` / `strict` | Accepted in settings but unsupported in 0.5.0; falls back to `observe` with a doctor warning |
+
+Notes:
+
+- Always-active names are resolved against tools that actually exist in the session.
+- Grouped tools are deactivated only while a managed Z.AI model is active in `manual` mode; switching away restores the controlled tool state.
+- Tools owned by other extensions and ungrouped builtins are never capped or removed.
+- Lazy activation is additive. Z.AI still receives the full active tool list on the next request (Pi full-list fallback), and pi-zai rotates the cache segment once.
+- `observe` records the configured tool count and estimated schema bytes without registering a loader or changing active tools.
+- No extra model calls are made for tool selection in 0.5.0.
 
 ## Thinking override
 
@@ -63,12 +88,14 @@ Consent is stored separately at `~/.pi/agent/state/pi-zai/telemetry.consent.json
 
 ## Credentials (Pi native)
 
-| Variable | Purpose |
-|----------|---------|
-| `ZAI_API_KEY` | Z.AI key for built-in `zai` (via Pi auth resolution) |
-| `ZAI_CODING_CN_API_KEY` | Coding Plan CN key |
+| Variable | Provider | Base URL |
+|----------|----------|----------|
+| `ZAI_API_KEY` | `zai` | `https://api.z.ai/api/coding/paas/v4` |
+| `ZAI_CODING_CN_API_KEY` | `zai-coding-cn` | `https://open.bigmodel.cn/api/coding/paas/v4` |
 
 Credentials resolve through Pi's `ModelRegistry`: `auth.json`, `models.json`, runtime `--api-key`, then env vars. pi-zai **does not** register or override Pi's built-in `zai` / `zai-coding-cn` providers.
+
+Both Coding Plan endpoints are first-class for diagnostics, cache segmentation, adaptive tools, and `/zai-capabilities`. Selecting `zai-coding-cn/glm-5.2` routes probes and usage monitors to `https://open.bigmodel.cn`.
 
 ## Platform API (optional)
 

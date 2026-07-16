@@ -221,3 +221,11 @@ The package includes tests asserting that:
 - privacy preview does not call the network;
 - telemetry requires aggregate mode plus explicit consent;
 - payload normalization performs no thinking mutation when no override is configured.
+
+## Dynamic tools and affinity identifiers
+
+- Local metrics may store toolset fingerprints, counts, and transition classifications.
+- Raw tool names, schemas, arguments, and results are not written to metrics or telemetry.
+- Session-affinity identifiers may be sent as `X-Session-Id` only when `sessionAffinity=experimental`; they are never shown in `/zai-doctor` output and are never uploaded.
+- `/zai-capabilities probe` stores only boolean/result metadata and HTTP status codes.
+

@@ -5,8 +5,13 @@ import type {
 	SessionStartEvent,
 	TurnEndEvent,
 } from "@earendil-works/pi-coding-agent";
+import type { AdaptiveToolObservation } from "./adaptive-tools/observe.ts";
 import { AttemptTracker } from "./attempt-tracker.ts";
 import { CacheMetricsStore } from "./cache/metrics.ts";
+import type {
+	ToolsetSnapshot,
+	ToolsetTransition,
+} from "./cache/toolset-snapshot.ts";
 import { QueryCorrelation } from "./correlation.ts";
 import type { MetricsStorage } from "./storage/types.ts";
 import { TpsTracker } from "./telemetry/tps.ts";
@@ -38,6 +43,22 @@ export interface ZaiSessionState {
 				volatileLineCount: number;
 				hasDynamicMarker: boolean;
 				systemFingerprint: string | undefined;
+		  }
+		| undefined;
+	lastToolsetSnapshot: ToolsetSnapshot | undefined;
+	lastToolsetTransition:
+		| (ToolsetTransition & {
+				apiFamily?: string;
+				dynamicToolMode?: string;
+		  })
+		| undefined;
+	toolsetGeneration: number;
+	adaptiveTools:
+		| {
+				mode: string;
+				loaderInvocations: number;
+				lastAddedCount: number;
+				observation?: AdaptiveToolObservation;
 		  }
 		| undefined;
 }
@@ -99,6 +120,10 @@ export function createZaiSessionState(
 		sessionAffinityId: newSessionAffinityId(),
 		activeBenchmarkRunId: undefined,
 		promptStability: undefined,
+		lastToolsetSnapshot: undefined,
+		lastToolsetTransition: undefined,
+		toolsetGeneration: 0,
+		adaptiveTools: undefined,
 	};
 }
 

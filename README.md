@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@onlinechefgroep/pi-zai"><img src="https://img.shields.io/npm/v/@onlinechefgroep/pi-zai?style=flat-square&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Pi-%E2%89%A50.80.0-24292f?style=flat-square" alt="Pi 0.80.0 or newer" />
+  <img src="https://img.shields.io/badge/Pi-%E2%89%A50.80.7-24292f?style=flat-square" alt="Pi 0.80.7 or newer" />
   <img src="https://img.shields.io/badge/Node-%E2%89%A522.19-24292f?style=flat-square" alt="Node 22.19 or newer" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-24292f?style=flat-square" alt="MIT license" /></a>
 </p>
@@ -56,6 +56,7 @@ Credentials stay in Pi's normal credential flow: `/login`, `auth.json`, `models.
 | `/zai-cache` | Current cache segment, hit/miss ratios, fingerprints, and recommendations |
 | `/zai-usage` | Z.AI session token totals, Coding Plan quota, or Platform cost estimates |
 | `/zai-doctor` | Integration checks and optional connectivity/stability probes |
+| `/zai-capabilities` | Capability resolution and opt-in live probes |
 | `/zai-transport` | Local latency and controlled error-category summaries |
 | `/zai-data` | Inspect, export, vacuum, or wipe local metrics |
 | `/zai-privacy preview` | Show exactly what is stored locally and what could be aggregated |
@@ -145,19 +146,20 @@ Anonymous aggregate telemetry exists as an opt-in path and is off by default. It
 | `metrics.mode` | `local` | `off`, in-memory, or bounded SQLite storage |
 | `promptStability.mode` | `observe` | Measure stable and volatile prompt sections without rewriting |
 | `sessionAffinity` | `off` | Experimental `X-Session-Id` support when enabled |
+| `adaptiveTools.mode` | `off` | Opt-in adaptive tool loading (`observe` / `manual`) |
 | `telemetry.mode` | `off` | No remote aggregate uploads |
 
 [Configuration reference →](docs/configuration.md)
 
 ## Endpoints
 
-| Provider | Route | Billing |
+| Provider | Base URL | Billing |
 |---|---|---|
-| `zai` | `api.z.ai/.../coding/paas/v4` | Coding Plan |
-| `zai-coding-cn` | `open.bigmodel.cn/.../coding/paas/v4` | Coding Plan (China) |
-| `zai-platform` | `api.z.ai/.../paas/v4` | Metered Platform API |
+| `zai` | `https://api.z.ai/api/coding/paas/v4` | Coding Plan (global) |
+| `zai-coding-cn` | `https://open.bigmodel.cn/api/coding/paas/v4` | Coding Plan (China) |
+| `zai-platform` | `https://api.z.ai/api/paas/v4` (manual `models.json`) | Metered Platform API |
 
-pi-zai does not override Pi's built-in `zai` or `zai-coding-cn` providers. Register `zai-platform` in `models.json` only when you need the metered endpoint.
+pi-zai does not override Pi's built-in `zai` or `zai-coding-cn` providers. Register `zai-platform` in `models.json` only when you need the metered endpoint. Adaptive tools, cache segmentation, and `/zai-capabilities` follow whichever of these models is active.
 
 ## Documentation
 

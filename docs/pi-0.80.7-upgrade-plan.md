@@ -6,6 +6,8 @@
 **Upstream baseline:** Pi `0.80.7`  
 **Last updated:** 2026-07-14
 
+> Implementation status (2026-07-14): baseline work for this plan is landing in `@onlinechefgroep/pi-zai@0.5.0` on the adaptive-tool-loading branch.
+
 ## 1. Executive summary
 
 Pi 0.80.7 introduces three provider/runtime changes relevant to `pi-zai`:

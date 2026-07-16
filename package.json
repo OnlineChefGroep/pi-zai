@@ -1,6 +1,6 @@
 {
 	"name": "@onlinechefgroep/pi-zai",
-	"version": "0.4.1",
+	"version": "0.5.0",
 	"description": "Z.AI cache visibility, native request diagnostics, and local operator metrics for Pi",
 	"type": "module",
 	"license": "MIT",
@@ -40,31 +40,36 @@
 	],
 	"scripts": {
 		"clean": "shx rm -rf dist",
+		"prebuild": "node scripts/generate-version.mjs",
 		"build": "tsc -p tsconfig.build.json",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"test": "vitest --run",
+		"check:version": "node scripts/generate-version.mjs --check",
 		"check:package": "npm pack --dry-run --json",
 		"check:consumer-install": "node scripts/check-consumer-install.mjs",
 		"benchmark:cache-affinity": "npm run build && node scripts/cache-affinity-ab.mjs",
-		"prepublishOnly": "npm run clean && npm run build && npm run lint && npm run test && npm run check:consumer-install"
+		"prepublishOnly": "npm run clean && npm run check:version && npm run build && npm run lint && npm run test && npm run check:consumer-install"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.0.6",
-		"@earendil-works/pi-agent-core": "0.80.6",
-		"@earendil-works/pi-ai": "0.80.6",
-		"@earendil-works/pi-coding-agent": "0.80.6",
+		"@earendil-works/pi-agent-core": "0.80.7",
+		"@earendil-works/pi-ai": "0.80.7",
+		"@earendil-works/pi-coding-agent": "0.80.7",
 		"@types/node": "26.1.1",
 		"shx": "0.4.0",
 		"typescript": "7.0.2",
 		"vitest": "4.1.10"
 	},
 	"peerDependencies": {
-		"@earendil-works/pi-coding-agent": ">=0.80.0"
+		"@earendil-works/pi-coding-agent": ">=0.80.7"
 	},
 	"peerDependenciesMeta": {
 		"@earendil-works/pi-coding-agent": {
 			"optional": true
 		}
+	},
+	"dependencies": {
+		"typebox": "^1.1.38"
 	}
 }

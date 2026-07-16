@@ -9,6 +9,7 @@ import {
 } from "../cache/compaction.ts";
 import { canonicalStableSystemPrefix } from "../cache/context-policy.ts";
 import { fingerprintToolset } from "../cache/fingerprint.ts";
+import { resolveZaiCapabilities } from "../capabilities.ts";
 import {
 	formatProbeSummary,
 	formatRecommendedRetrySettingsJson,
@@ -191,7 +192,7 @@ export function registerZaiDoctorCommand(
 				name: "Pi compatibility",
 				status: "pass",
 				detail:
-					"Requires @earendil-works/pi-coding-agent >= 0.80.0 with native Z.AI transport.",
+					"Requires @earendil-works/pi-coding-agent >= 0.80.7 with native Z.AI transport.",
 			});
 
 			checks.push({
@@ -276,8 +277,37 @@ export function registerZaiDoctorCommand(
 				status: config.sessionAffinity === "experimental" ? "pass" : "skip",
 				detail:
 					config.sessionAffinity === "experimental"
-						? `X-Session-Id enabled (id ${sessionState.sessionAffinityId.slice(0, 12)}...)`
+						? "X-Session-Id enabled (identifier not displayed)"
 						: "X-Session-Id off (set zai.sessionAffinity=experimental to enable)",
+			});
+
+			const capabilities = resolveZaiCapabilities(
+				thinkingModel ?? ctx.model,
+				config.sessionAffinity,
+			);
+			checks.push({
+				name: "Provider capabilities",
+				status: "pass",
+				detail: `API ${capabilities.apiFamily}; dynamic tools ${capabilities.dynamicToolMode}; ownership ${capabilities.providerOwnership}`,
+			});
+			checks.push({
+				name: "Adaptive tools",
+				status:
+					config.adaptiveTools.mode === "off"
+						? "skip"
+						: config.adaptiveTools.unsupportedMode
+							? "warn"
+							: "pass",
+				detail: config.adaptiveTools.unsupportedMode
+					? `mode ${config.adaptiveTools.requestedMode} requested but unsupported in 0.5.0; using observe`
+					: `mode ${config.adaptiveTools.mode}`,
+			});
+			checks.push({
+				name: "Toolset tracking",
+				status: "pass",
+				detail: sessionState.lastToolsetTransition
+					? `generation ${sessionState.toolsetGeneration}; last ${sessionState.lastToolsetTransition.classification}; tools ${sessionState.lastToolsetTransition.previousCount} -> ${sessionState.lastToolsetTransition.nextCount}`
+					: "provider-request boundary armed; no transitions yet",
 			});
 
 			checks.push({

@@ -15,7 +15,7 @@ import {
 const validBody = {
 	schema: 1,
 	day: "2026-07-12",
-	extensionVersion: "0.3.0",
+	extensionVersion: "0.5.0",
 	promptMode: "observe",
 	attempts: 1,
 	errors: 0,

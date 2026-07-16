@@ -5,6 +5,8 @@
 **Default state:** disabled  
 **Principle:** add capabilities without overriding Pi's built-in `zai` provider
 
+> Implementation status (2026-07-14): `observe` + `manual` adaptive loader and `/zai-capabilities` ship in 0.5.0 (default off). Ranking, live tool_choice policy, and `zai-labs` remain later as specified.
+
 ## Objective
 
 Do more than merely remain compatible with Pi 0.80.7. Build an opt-in acceleration layer that uses Pi's new dynamic-tool plumbing and existing provider hooks to reduce the initial tool-schema payload, improve cache stability, and expose controlled Z.AI request policies.

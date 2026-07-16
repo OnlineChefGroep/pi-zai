@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createExtensionContext,
 	createMockExtensionApi,
+	createZaiCodingCnModel,
 	createZaiModel,
 	runExtensionLifecycle,
 } from "../test/mock-extension-api.ts";
@@ -43,6 +44,7 @@ const EXPECTED_COMMANDS = [
 	"zai-data",
 	"zai-usage",
 	"zai-doctor",
+	"zai-capabilities",
 	"zai-privacy",
 	"zai-transport",
 	"zai-benchmark",
@@ -117,6 +119,21 @@ describe("extension boundary (runtime)", () => {
 		expect(pi.providerCalls.unregister).toEqual([]);
 	});
 
+	it("treats China Coding Plan (zai-coding-cn) as native without provider overrides", async () => {
+		const cwd = tempCwd();
+		const model = createZaiCodingCnModel();
+		expect(model.baseUrl).toBe("https://open.bigmodel.cn/api/coding/paas/v4");
+		const pi = createMockExtensionApi({ cwd, model });
+		piZaiExtension(pi);
+		const ctx = createExtensionContext(cwd, model);
+
+		await runExtensionLifecycle(pi, ctx);
+
+		expect(fetchSpy).not.toHaveBeenCalled();
+		expect(pi.providerCalls.register).toEqual([]);
+		expect(pi.providerCalls.unregister).toEqual([]);
+	});
+
 	it("does not read PI_ZAI_* environment overrides at runtime", () => {
 		const cwd = tempCwd();
 		const previous = {
@@ -155,7 +172,7 @@ describe("extension boundary (runtime)", () => {
 
 		const preview = buildAggregateTelemetryPreview(
 			config,
-			"0.3.0",
+			"0.5.0",
 			{
 				provider: "zai",
 				modelId: "glm-5.2",
@@ -166,7 +183,7 @@ describe("extension boundary (runtime)", () => {
 		);
 		const text = formatPrivacyPreview(
 			config,
-			"0.3.0",
+			"0.5.0",
 			{
 				projectId: "local-only",
 				sessionHash: "local-only",
@@ -233,11 +250,43 @@ describe("extension boundary (runtime)", () => {
 		});
 	});
 
+	it("applies an explicit thinking override to a Platform model without compat metadata", async () => {
+		const cwd = tempCwd();
+		writeProjectSettings(cwd, { zai: { preserveThinking: false } });
+		const model = {
+			...createZaiModel(),
+			provider: "zai-platform",
+			baseUrl: "https://api.z.ai/api/paas/v4",
+			compat: undefined,
+		};
+		const pi = createMockExtensionApi({ cwd, model });
+		piZaiExtension(pi);
+		const ctx = createExtensionContext(cwd, model);
+
+		await pi.trigger(
+			"session_start",
+			{ type: "session_start", reason: "startup" },
+			ctx,
+		);
+		const [result] = await pi.trigger(
+			"before_provider_request",
+			{
+				type: "before_provider_request",
+				payload: { thinking: { type: "enabled", clear_thinking: false } },
+			},
+			ctx,
+		);
+
+		expect(result).toEqual({
+			thinking: { type: "enabled", clear_thinking: true },
+		});
+	});
+
 	it("calls fetch only through the telemetry uploader for aggregate uploads", async () => {
 		const payload: AggregateTelemetryPayload = {
 			schema: 1,
 			day: "2026-07-12",
-			extensionVersion: "0.3.0",
+			extensionVersion: "0.5.0",
 			promptMode: "observe",
 			attempts: 1,
 			errors: 0,

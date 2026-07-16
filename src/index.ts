@@ -2,18 +2,21 @@ import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { clampThinkingLevel } from "@earendil-works/pi-ai/compat";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createAdaptiveToolsSessionPolicy } from "./adaptive-tools/index.ts";
 import {
 	applyZaiCompactionInstructions,
 	applyZaiTreeSummaryInstructions,
 	buildCacheSegmentKey,
 	canonicalStableSystemPrefix,
+	captureActiveToolset,
+	classifyToolsetTransition,
 	detectSegmentChange,
 	fingerprintSystemPrompt,
-	fingerprintToolset,
 	formatSegmentChangeReason,
 	isZaiModel,
 } from "./cache/index.ts";
 import { applySafePromptNormalization } from "./cache/prompt-safe.ts";
+import { resolveZaiCapabilities } from "./capabilities.ts";
 import {
 	createDefaultZaiCommandDeps,
 	registerZaiCommands,
@@ -21,7 +24,7 @@ import {
 import { loadZaiConfig, type ZaiConfig } from "./config.ts";
 import { fingerprintPayload, hashSessionId } from "./correlation.ts";
 import { formatPiCredentialSource } from "./credentials.ts";
-import { isNativeZaiModel } from "./native-zai.ts";
+import { isManagedZaiModel, isNativeZaiModel } from "./native-zai.ts";
 import { normalizeZaiThinkingPayload } from "./payload-normalizer.ts";
 import { snapshotPromptStability } from "./prompt-stability.ts";
 import {
@@ -53,6 +56,7 @@ import {
 	isTelemetryUploadEnabled,
 	syncPendingTelemetry,
 } from "./telemetry/sync.ts";
+import { EXTENSION_VERSION } from "./version.generated.ts";
 import type { ZaiModel } from "./zai-model.ts";
 
 export { loadZaiConfig, type ZaiConfig } from "./config.ts";
@@ -79,8 +83,7 @@ export {
 	type ZaiHookHandlers,
 	type ZaiSessionState,
 } from "./state.ts";
-
-const EXTENSION_VERSION = "0.3.0";
+export { EXTENSION_VERSION } from "./version.generated.ts";
 
 function clampThinkingForModel(
 	pi: ExtensionAPI,
@@ -116,7 +119,8 @@ function updateSessionFromModel(
 function updateCacheSegment(
 	model: ZaiModel,
 	systemPrompt: string,
-	tools: { name: string }[],
+	toolsetFingerprint: string,
+	extraReasons: string[] = [],
 ): void {
 	const segment = buildCacheSegmentKey({
 		provider: model.provider,
@@ -125,15 +129,47 @@ function updateCacheSegment(
 		systemFingerprint: fingerprintSystemPrompt(
 			canonicalStableSystemPrefix(systemPrompt),
 		),
-		toolsetFingerprint: fingerprintToolset(tools),
+		toolsetFingerprint,
 	});
 	const store = getCacheMetricsStore();
 	const change = detectSegmentChange(store.get()?.segment, segment);
-	if (change.changed) {
-		store.reset(segment, formatSegmentChangeReason(change));
+	if (change.changed || extraReasons.length > 0) {
+		const reasons = [...change.reasons, ...extraReasons];
+		store.reset(segment, formatSegmentChangeReason({ changed: true, reasons }));
 	} else {
 		store.updateSegment(segment, "unchanged");
 	}
+}
+
+function syncToolsetAtProviderBoundary(
+	pi: ExtensionAPI,
+	model: ZaiModel,
+	systemPrompt: string,
+): void {
+	const snapshot = captureActiveToolset(pi);
+	if (!snapshot) return;
+	const transition = classifyToolsetTransition(
+		sessionState.lastToolsetSnapshot,
+		snapshot,
+	);
+	const capabilities = resolveZaiCapabilities(model);
+
+	if (transition.changed) {
+		sessionState.toolsetGeneration += 1;
+	}
+	updateCacheSegment(
+		model,
+		systemPrompt,
+		snapshot.fingerprint,
+		transition.changed ? [`toolset:${transition.classification}`] : [],
+	);
+
+	sessionState.lastToolsetSnapshot = snapshot;
+	sessionState.lastToolsetTransition = {
+		...transition,
+		apiFamily: capabilities.apiFamily,
+		dynamicToolMode: capabilities.dynamicToolMode,
+	};
 }
 
 function classifyTransportError(
@@ -180,6 +216,18 @@ async function ensureMetricsStorage(
 
 export default function piZaiExtension(pi: ExtensionAPI): void {
 	let config: ZaiConfig = loadZaiConfig();
+	const adaptiveToolsPolicy = createAdaptiveToolsSessionPolicy(
+		pi,
+		() => config.adaptiveTools,
+	);
+	const syncAdaptiveToolsPolicy = (model: ZaiModel | undefined): void => {
+		try {
+			if (isManagedZaiModel(model)) adaptiveToolsPolicy.apply();
+			else adaptiveToolsPolicy.restore();
+		} catch {
+			// Fail open: adaptive tooling must never block the Pi runtime.
+		}
+	};
 
 	sessionState.preserveThinking = config.preserveThinking;
 	registerZaiCommands(pi, createDefaultZaiCommandDeps(EXTENSION_VERSION));
@@ -194,7 +242,13 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			resetCorrelationState();
 			sessionState.sessionAffinityId = newSessionAffinityId();
 			sessionState.activeBenchmarkRunId = undefined;
+			sessionState.lastToolsetSnapshot = undefined;
+			sessionState.lastToolsetTransition = undefined;
+			sessionState.toolsetGeneration = 0;
+			sessionState.adaptiveTools = undefined;
 		}
+
+		syncAdaptiveToolsPolicy(ctx.model);
 
 		sessionState.projectId = projectIdForCwd(ctx.cwd);
 		sessionState.sessionHash = hashSessionId(ctx.sessionManager.getSessionId());
@@ -230,6 +284,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_shutdown", async (_event, ctx) => {
+		adaptiveToolsPolicy.restore();
 		resetCacheMetrics();
 		resetTpsMetrics();
 		resetToolMetrics();
@@ -239,6 +294,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("model_select", async (event, ctx) => {
+		syncAdaptiveToolsPolicy(event.model);
 		clampThinkingForModel(pi, event.model);
 		updateSessionFromModel(event.model, pi.getThinkingLevel());
 		if (isZaiProvider(event.model.provider)) {
@@ -300,15 +356,7 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 		getAttemptTracker().prepareQueryAttempt(queryId, turnStartedAt);
 		getTpsTracker().beginTurn(turnStartedAt);
 		getToolExecutionTracker().beginTurn();
-		const activeToolNames = new Set(pi.getActiveTools());
-		const toolsForFingerprint = pi
-			.getAllTools()
-			.filter((tool) => activeToolNames.has(tool.name))
-			.map((tool) => ({
-				name: tool.name,
-				description: tool.description,
-				parameters: tool.parameters,
-			}));
+		const snapshot = captureActiveToolset(pi);
 		let systemPromptForMetrics = event.systemPrompt;
 		if (config.promptStabilityMode === "safe") {
 			const normalized = applySafePromptNormalization(event.systemPrompt);
@@ -316,7 +364,15 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 				systemPromptForMetrics = normalized;
 			}
 		}
-		updateCacheSegment(ctx.model, systemPromptForMetrics, toolsForFingerprint);
+		// Baseline only; authoritative toolset check happens in before_provider_request.
+		if (snapshot) {
+			updateCacheSegment(
+				ctx.model,
+				systemPromptForMetrics,
+				snapshot.fingerprint,
+			);
+			sessionState.lastToolsetSnapshot = snapshot;
+		}
 		sessionState.promptStability = snapshotPromptStability(
 			systemPromptForMetrics,
 		);
@@ -426,8 +482,14 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("before_provider_request", async (event, ctx) => {
-		if (!ctx.model || !isNativeZaiModel(ctx.model)) {
+		if (!ctx.model || !isManagedZaiModel(ctx.model)) {
 			return;
+		}
+
+		try {
+			syncToolsetAtProviderBoundary(pi, ctx.model, ctx.getSystemPrompt());
+		} catch {
+			// Fail open: keep current segment and continue the request.
 		}
 
 		const { queryId, requestId, attempt } = getQueryCorrelation().nextAttempt();
@@ -446,11 +508,22 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 			});
 		}
 
+		const capabilities = resolveZaiCapabilities(
+			ctx.model,
+			config.sessionAffinity,
+		);
+		if (
+			config.preserveThinking === undefined &&
+			!capabilities.usesZaiThinkingFormat &&
+			!isNativeZaiModel(ctx.model)
+		) {
+			return;
+		}
 		return normalizeZaiThinkingPayload(event.payload, config);
 	});
 
 	pi.on("after_provider_response", async (event, ctx) => {
-		if (!ctx.model || !isNativeZaiModel(ctx.model)) return;
+		if (!ctx.model || !isManagedZaiModel(ctx.model)) return;
 		getAttemptTracker().markHeadersReceived();
 		getAttemptTracker().markResponse(
 			event.status,
@@ -462,10 +535,26 @@ export default function piZaiExtension(pi: ExtensionAPI): void {
 
 	pi.on("before_provider_headers", async (event) => {
 		if (!isZaiProvider(sessionState.provider)) return;
-		if (config.sessionAffinity === "experimental") {
+
+		const headerNames = Object.keys(event.headers);
+		const hasHeader = (name: string): boolean =>
+			headerNames.some((key) => key.toLowerCase() === name.toLowerCase());
+
+		const hasAffinityHeader = [
+			"x-session-id",
+			"session-id",
+			"session_id",
+			"x-client-request-id",
+			"x-session-affinity",
+		].some(hasHeader);
+		if (config.sessionAffinity === "experimental" && !hasAffinityHeader) {
 			event.headers["X-Session-Id"] = sessionState.sessionAffinityId;
 		}
-		event.headers["User-Agent"] = `pi-zai/${EXTENSION_VERSION}`;
-		event.headers["Accept-Language"] = "en-US,en";
+		if (!hasHeader("User-Agent")) {
+			event.headers["User-Agent"] = `pi-zai/${EXTENSION_VERSION}`;
+		}
+		if (!hasHeader("Accept-Language")) {
+			event.headers["Accept-Language"] = "en-US,en";
+		}
 	});
 }

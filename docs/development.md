@@ -127,3 +127,11 @@ After monorepo changes, mirror to `OnlineChefGroep/pi-zai`:
 4. Commit and push `main`
 
 Do not publish stale `dist/` artifacts — always `npm run clean && npm run build` first.
+
+## Pi compatibility matrix
+
+- Development dependencies target Pi **0.80.7**.
+- Optional peer: `@earendil-works/pi-coding-agent >=0.80.7`.
+- CI runs `check:version`, an exact `pi-minimum` lane, and a non-blocking `pi-latest` lane.
+- Generate/check the runtime version with `npm run check:version` (also runs from `prebuild`).
+

@@ -53,7 +53,7 @@ jobs:
       - run: npm audit --audit-level=high --prefix worker/telemetry
 
   pi-minimum:
-    name: Pi 0.80.7 minimum
+    name: Pi 0.80.10 minimum
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
@@ -64,12 +64,12 @@ jobs:
           node-version: '22.x'
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Pin Pi packages to 0.80.7
+      - name: Pin Pi packages to 0.80.10
         run: |
           npm install --ignore-scripts --save-dev \
-            @earendil-works/pi-agent-core@0.80.7 \
-            @earendil-works/pi-ai@0.80.7 \
-            @earendil-works/pi-coding-agent@0.80.7
+            @earendil-works/pi-agent-core@0.80.10 \
+            @earendil-works/pi-ai@0.80.10 \
+            @earendil-works/pi-coding-agent@0.80.10
       - run: npm run build
       - run: npm test
 

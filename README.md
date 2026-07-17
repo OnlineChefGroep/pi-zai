@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@onlinechefgroep/pi-zai"><img src="https://img.shields.io/npm/v/@onlinechefgroep/pi-zai?style=flat-square&label=npm" alt="npm version" /></a>
-  <img src="https://img.shields.io/badge/Pi-%E2%89%A50.80.7-24292f?style=flat-square" alt="Pi 0.80.7 or newer" />
+  <img src="https://img.shields.io/badge/Pi-%E2%89%A50.80.10-24292f?style=flat-square" alt="Pi 0.80.10 or newer" />
   <img src="https://img.shields.io/badge/Node-%E2%89%A522.19-24292f?style=flat-square" alt="Node 22.19 or newer" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-24292f?style=flat-square" alt="MIT license" /></a>
 </p>

@@ -21,15 +21,14 @@ jobs:
           node-version: '22.x'
           cache: npm
       - run: npm ci --ignore-scripts
-      - name: Capture compiler output
+      - name: Apply diagnosed compiler fix
         shell: bash
         run: |
-          set +e
-          npm run build > BUILD-DIAGNOSTIC.txt 2>&1
-          status=$?
-          printf '\nexit_code=%s\n' "$status" >> BUILD-DIAGNOSTIC.txt
+          sed -i 's/readPiRetrySettings(ctx\.cwd)/readPiRetrySettings()/' src/commands/doctor.ts
+          npm run lint:fix
+          rm -f BUILD-DIAGNOSTIC.txt
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add BUILD-DIAGNOSTIC.txt
-          git commit -m "chore: capture build diagnostic" || exit 0
+          git add src/commands/doctor.ts BUILD-DIAGNOSTIC.txt
+          git commit -m "fix(doctor): call retry settings reader with supported signature" || exit 0
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"

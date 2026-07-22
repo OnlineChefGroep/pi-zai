@@ -42,6 +42,12 @@ functionality without credentials, drive the extension against Pi's
 `/zai-data` command handler to read it back. Query commands **before**
 `session_shutdown`, which tears down the metrics store.
 
+Gotcha: `createMockExtensionApi().registerCommand` only records command *names*
+(for assertion), not handlers. To call `/zai-data` (or any command) from a
+one-off script, wrap `registerCommand` before `piZaiExtension(pi)` and stash
+`options.handler`. Also stub `ctx.sessionManager.getEntries()` (return `[]`) if
+you invoke `/zai`, which iterates session entries.
+
 ### Optional / gated
 
 - Live cache-affinity benchmark (`npm run benchmark:cache-affinity`) needs a real

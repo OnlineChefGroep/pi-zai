@@ -192,7 +192,7 @@ export function registerZaiDoctorCommand(
 				name: "Pi compatibility",
 				status: "pass",
 				detail:
-					"Requires @earendil-works/pi-coding-agent >= 0.80.7 with native Z.AI transport.",
+					"Requires @earendil-works/pi-coding-agent >= 0.80.10 with native Z.AI transport.",
 			});
 
 			checks.push({
@@ -299,7 +299,7 @@ export function registerZaiDoctorCommand(
 							? "warn"
 							: "pass",
 				detail: config.adaptiveTools.unsupportedMode
-					? `mode ${config.adaptiveTools.requestedMode} requested but unsupported in 0.5.0; using observe`
+					? `mode ${config.adaptiveTools.requestedMode} requested but unsupported in 0.6.0; using observe`
 					: `mode ${config.adaptiveTools.mode}`,
 			});
 			checks.push({

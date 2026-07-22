@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Pi (`@earendil-works/pi-coding-agent`) `>= 0.80.7`
+- Pi (`@earendil-works/pi-coding-agent`) `>= 0.80.10`
 - Pi's built-in Z.AI providers (`zai`, `zai-coding-cn`)
 - Node.js `>= 22.19.0`
 

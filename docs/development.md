@@ -108,14 +108,28 @@ Bind route `api.chefgroep.online/pi-zai/telemetry/v1/aggregate` to the deployed 
 
 ## Release (maintainers)
 
-Lockstep with monorepo release script or standalone npm publish from `packages/pi-zai`:
+Standalone repo [OnlineChefGroep/pi-zai](https://github.com/OnlineChefGroep/pi-zai) is the release source of truth. Publishing is automated by `.github/workflows/release.yml`.
+
+### Cut a release
+
+1. Land product changes on `main` as usual (version stays unchanged).
+2. On a release PR, bump `package.json` / `package-lock.json` version, regenerate `src/version.generated.ts` (`node scripts/generate-version.mjs`), and move notes under a dated section in `CHANGELOG.md`.
+3. Merge the release PR to `main`. The Release workflow then:
+   - skips cleanly if that exact version is already on npm;
+   - otherwise runs lint/build/test/package checks, `npm publish --access public --provenance`, and creates GitHub Release `v<version>` (and tag) via `gh`.
+4. Optional fallback: push an annotated tag `v<x.y.z>` yourself — `.github/workflows/publish-npm.yml` publishes if npm is still missing that version.
+
+Manual re-run: Actions → **Release** → **Run workflow** (`workflow_dispatch`) on `main` after the version bump is present.
+
+Breaking changes → minor bump (`0.x.0`). Keep `NPM_TOKEN` (or npm trusted publishing OIDC) configured on the repo.
+
+### Local preflight
 
 ```bash
 npm run clean && npm run build && npm test
-npm pack --dry-run
+npm run check:package
+npm run check:consumer-install
 ```
-
-Changelog: `packages/pi-zai/CHANGELOG.md`. Breaking changes → minor bump (0.2.0+).
 
 ## Sync standalone repo
 
@@ -130,8 +144,8 @@ Do not publish stale `dist/` artifacts — always `npm run clean && npm run buil
 
 ## Pi compatibility matrix
 
-- Development dependencies target Pi **0.80.7**.
-- Optional peer: `@earendil-works/pi-coding-agent >=0.80.7`.
-- CI runs `check:version`, an exact `pi-minimum` lane, and a non-blocking `pi-latest` lane.
+- Development dependencies target Pi **0.81.1**.
+- Optional peer: `@earendil-works/pi-coding-agent >=0.80.10`.
+- CI runs `check:version`, an exact `pi-minimum` lane (`0.80.10`), and a non-blocking `pi-latest` lane.
 - Generate/check the runtime version with `npm run check:version` (also runs from `prebuild`).
 

@@ -1,5 +1,8 @@
 name: Release
 
+# Primary publish path for @onlinechefgroep/pi-zai.
+# Triggers when package identity / changelog changes on main, or via manual
+# workflow_dispatch after a version bump is already on the branch.
 on:
   push:
     branches: [main]
@@ -8,6 +11,7 @@ on:
       - package-lock.json
       - CHANGELOG.md
       - .github/workflows/release.yml
+  workflow_dispatch:
 
 concurrency:
   group: npm-release
@@ -28,6 +32,7 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
       - name: Use npm with trusted-publishing support
         run: npm install --global npm@11.5.1
       - name: Read package identity
@@ -101,4 +106,6 @@ jobs:
           tag="v$PACKAGE_VERSION"
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes
+          else
+            echo "GitHub release $tag already exists; skipping create."
           fi

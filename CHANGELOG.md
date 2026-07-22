@@ -14,6 +14,23 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Removed
 
+## [0.6.0] - 2026-07-22
+
+### Breaking Changes
+
+- Raised the optional Pi peer floor to `@earendil-works/pi-coding-agent >=0.80.10`.
+
+### Changed
+
+- Development baseline tracks Pi `0.81.1` while CI still proves the exact `0.80.10` peer floor.
+- Bumped runtime dependency `typebox` to `^1.3.6`.
+- Release Action publishes to npm with provenance, creates the `v*` GitHub tag/release, and can be re-run via `workflow_dispatch`.
+
+### Fixed
+
+- Worker audit CI tolerates a documented upstream-deferred `sharp` advisory without hiding new high/critical findings.
+- Manual tag-push publish workflow is idempotent when the version is already on npm.
+
 ## [0.5.0] - 2026-07-14
 
 ### Breaking Changes

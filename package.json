@@ -1,6 +1,6 @@
 {
 	"name": "@onlinechefgroep/pi-zai",
-	"version": "0.5.0",
+	"version": "0.6.0",
 	"description": "Z.AI cache visibility, native request diagnostics, and local operator metrics for Pi",
 	"type": "module",
 	"license": "MIT",

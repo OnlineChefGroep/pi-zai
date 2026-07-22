@@ -13,26 +13,29 @@ import {
 function formatTransportSummary(summary: TransportSummary): string {
 	const lines = [
 		...formatHeading("Z.AI transport"),
-		formatKeyValue("Attempts", summary.attempts),
-		formatKeyValue("Errors", summary.errors),
-		formatKeyValue("Avg headers", formatMs(summary.avgRequestToHeadersMs)),
+		formatKeyValue("Logical turns", summary.attempts),
+		formatKeyValue("Terminal errors", summary.errors),
+		formatKeyValue("Avg request → headers", formatMs(summary.avgRequestToHeadersMs)),
 		formatKeyValue(
-			"Avg first delta",
+			"Avg turn → first delta",
 			formatMs(summary.avgRequestToFirstDeltaMs),
 		),
 		formatKeyValue(
-			"Avg first tool",
+			"Avg turn → first tool",
 			formatMs(summary.avgRequestToFirstToolDeltaMs),
 		),
-		formatKeyValue("Avg total", formatMs(summary.avgTotalMs)),
+		formatKeyValue("Avg turn wall", formatMs(summary.avgTotalMs)),
 	];
 	if (summary.totalToolCalls > 0) {
 		lines.push(
 			formatKeyValue(
-				"Tool calls",
+				"Tool executions",
 				`${summary.totalToolCalls}${summary.totalToolErrors > 0 ? ` (${summary.totalToolErrors} errors)` : ""}`,
 			),
-			formatKeyValue("Avg tool duration", formatMs(summary.avgToolDurationMs)),
+			formatKeyValue(
+				"Avg tool time per turn",
+				formatMs(summary.avgToolDurationMs),
+			),
 		);
 	}
 
@@ -42,18 +45,24 @@ function formatTransportSummary(summary: TransportSummary): string {
 	if (categories.length > 0) {
 		lines.push(
 			...formatSection(
-				"Error categories",
+				"Terminal error categories",
 				categories.map(([category, count]) => `${category}: ${count}`),
 			),
 		);
 	}
+
+	lines.push(
+		"",
+		"Scope note: one stored row represents one completed agent turn. Retry attempts inside that turn are not separate rows; the attempt field records the final attempt number.",
+		"Tool time is the summed tool wall time per stored turn, not mean latency per individual tool execution.",
+	);
 
 	return joinCommandLines(lines);
 }
 
 export function registerZaiTransportCommand(pi: ExtensionAPI): void {
 	pi.registerCommand("zai-transport", {
-		description: "Local transport latency and error-category summary",
+		description: "Local transport latency and terminal error summary",
 		handler: async (_args, ctx) => {
 			const storage = getMetricsStorage();
 			if (!storage) {

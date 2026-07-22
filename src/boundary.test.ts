@@ -106,6 +106,32 @@ describe("extension boundary (runtime)", () => {
 		);
 	});
 
+	it("records a local metric and reads it back via /zai-data", async () => {
+		const cwd = tempCwd();
+		const pi = createMockExtensionApi({ cwd, model: createZaiModel() });
+		piZaiExtension(pi);
+		const notifications: string[] = [];
+		const ctx = createExtensionContext(cwd);
+		ctx.ui.notify = (message) => {
+			notifications.push(String(message));
+		};
+
+		await runExtensionLifecycle(pi, ctx, { skipShutdown: true });
+		await pi.executeCommand("zai-data", "status", ctx);
+		await pi.executeCommand("zai", "", ctx);
+
+		const dataStatus = notifications.find((text) =>
+			text.includes("Z.AI local metrics"),
+		);
+		expect(dataStatus).toBeDefined();
+		expect(dataStatus).toMatch(/Attempts:\s*[1-9]/);
+		expect(notifications.some((text) => text.includes("Z.AI status"))).toBe(
+			true,
+		);
+
+		await pi.trigger("session_shutdown", { type: "session_shutdown" }, ctx);
+	});
+
 	it("does not call fetch across the full extension lifecycle when telemetry is off", async () => {
 		const cwd = tempCwd();
 		const pi = createMockExtensionApi({ cwd, model: createZaiModel() });

@@ -35,15 +35,20 @@ Tests are fully mock-based — no network, no LLM, no external services.
 Full manual E2E inside a live Pi session needs a Z.AI model + credentials
 (`ZAI_API_KEY` or `/login`) and an interactive TUI, so `pi -p` (print mode) will
 hang waiting on a model provider when no key is configured. To exercise core
-functionality without credentials, drive the extension against Pi's
-`ExtensionAPI` the way `src/boundary.test.ts` does (via
-`test/mock-extension-api.ts`): activate `piZaiExtension(pi)`, fire the
-`session_start` → `turn_end` hooks to record a metric to SQLite, then invoke the
-`/zai-data` command handler to read it back. Query commands **before**
-`session_shutdown`, which tears down the metrics store.
+functionality without credentials, use `test/mock-extension-api.ts`:
+`runExtensionLifecycle(pi, ctx, { skipShutdown: true })` then
+`pi.executeCommand("zai-data", "status", ctx)` (see
+`src/boundary.test.ts` — "records a local metric and reads it back via
+/zai-data"). Query commands **before** `session_shutdown`, which tears down the
+metrics store.
 
 ### Optional / gated
 
 - Live cache-affinity benchmark (`npm run benchmark:cache-affinity`) needs a real
   `ZAI_API_KEY` and network.
 - Telemetry worker deploy needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`.
+- GitHub Packages mirror ([pkgs/npm/pi-zai](https://github.com/OnlineChefGroep/pi-zai/pkgs/npm/pi-zai)):
+  published by `release.yml` / `publish-npm.yml` with `packages: write`. Primary
+  install path remains public npmjs; GH Packages needs `read:packages`. Cloud
+  agent tokens often cannot read/write org packages — use Actions
+  `workflow_dispatch` on **Release** to backfill, not a local `npm publish`.

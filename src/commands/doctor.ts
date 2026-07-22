@@ -374,7 +374,7 @@ export function registerZaiDoctorCommand(
 				checks.push(await runConnectionStabilityProbe(ctx, active));
 			}
 
-			const retrySettings = readPiRetrySettings(ctx.cwd);
+			const retrySettings = readPiRetrySettings();
 			const retryAdvice = formatRetrySettingsAdvice(retrySettings);
 			checks.push({
 				name: "Pi retry settings",

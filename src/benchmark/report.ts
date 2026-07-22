@@ -157,8 +157,7 @@ export function formatBenchmarkGatesSummary(
 		const absoluteGapPp = (a3Median - a1Median) * 100;
 		const a1Miss = Math.max(0, 1 - a1Median);
 		const a3Miss = Math.max(0, 1 - a3Median);
-		const relativeMissReduction =
-			a1Miss > 0 ? (a1Miss - a3Miss) / a1Miss : 0;
+		const relativeMissReduction = a1Miss > 0 ? (a1Miss - a3Miss) / a1Miss : 0;
 		const passed =
 			relativeMissReduction >=
 			BENCHMARK_SAMPLE_GATES.minRelativeMissReductionForAffinity;

@@ -1,12 +1,12 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { computeCacheRatios } from "../cache/metrics.ts";
 import { buildPlatformModelCatalog } from "../model-catalog.ts";
+import { computeUsageCostBreakdown } from "../usage-cost.ts";
 import {
 	fetchQuotaLimit,
 	formatQuotaLimit,
 	monitorBaseFromModelUrl,
 } from "../usage-monitor.ts";
-import { computeUsageCostBreakdown } from "../usage-cost.ts";
 import { getCacheMetricsStore } from "./cache-state.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
 import {
@@ -21,7 +21,11 @@ import {
 	requireZaiModel,
 } from "./helpers.ts";
 
-function formatContribution(label: string, cost: number, share: number): string {
+function formatContribution(
+	label: string,
+	cost: number,
+	share: number,
+): string {
 	return `  ${label}: ${formatDollarCost(cost)} (${formatPercent(share)} of equivalent total)`;
 }
 

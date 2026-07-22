@@ -14,6 +14,12 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Removed
 
+## [0.5.2] - 2026-07-22
+
+### Removed
+
+- Dropped stale planning documents that described the now-completed Pi 0.80.7 integration: `CURSOR_IMPLEMENTATION_PLAN.md` (root) and `docs/pi-0.80.7-upgrade-plan.md` / `docs/pi-0.80.7-experimental-acceleration.md`. The work shipped in 0.5.0; the current docs set and git history remain the references. This keeps the published tarball focused on operator-facing documentation.
+
 ## [0.5.1] - 2026-07-22
 
 ### Changed

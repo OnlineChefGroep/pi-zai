@@ -85,7 +85,12 @@ export interface ZaiHookHandlers {
 	) => void | Promise<void>;
 }
 
-const ZAI_PROVIDERS = new Set(["zai", "zai-coding-cn", "zai-platform"]);
+const ZAI_PROVIDERS = new Set([
+	"zai",
+	"zai-coding-cn",
+	"zai-coding-plan",
+	"zai-platform",
+]);
 
 export function isZaiProvider(provider: string | undefined): boolean {
 	return provider !== undefined && ZAI_PROVIDERS.has(provider);
@@ -97,7 +102,13 @@ export function inferEndpoint(
 ): ZaiEndpointKind {
 	if (provider === "zai-platform") return "platform";
 	if (provider === "zai-coding-cn") return "coding-cn";
-	if (provider === "zai" || baseUrl?.includes("/coding/")) return "coding";
+	if (
+		provider === "zai" ||
+		provider === "zai-coding-plan" ||
+		baseUrl?.includes("/coding/")
+	) {
+		return "coding";
+	}
 	return "unknown";
 }
 

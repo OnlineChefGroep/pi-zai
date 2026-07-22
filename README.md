@@ -182,7 +182,7 @@ npm test
 npm run lint
 ```
 
-The extension targets Pi `>= 0.80.0` and Node.js `>= 22.19.0`.
+The extension targets Pi `>= 0.80.10` and Node.js `>= 22.19.0`.
 
 ## License
 

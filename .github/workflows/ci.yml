@@ -50,7 +50,10 @@ jobs:
       - run: npm run check:package
       - run: npm run check:consumer-install
       - run: npm run check --prefix worker/telemetry
-      - run: npm audit --audit-level=high --prefix worker/telemetry
+      # Filtered worker audit: tolerates documented upstream-deferred dev-only
+      # advisories (see scripts/worker-audit.mjs) while still failing on any
+      # new high/critical advisory. The worker is excluded from the npm tarball.
+      - run: node scripts/worker-audit.mjs
 
   pi-minimum:
     name: Pi 0.80.10 minimum

@@ -32,7 +32,10 @@ function formatContribution(
 	return `  ${label}: ${formatDollarCost(cost)} (${formatPercent(share)} of equivalent total)`;
 }
 
-function equivalentHeading(modelId: string, subscriptionManaged: boolean): string {
+function equivalentHeading(
+	modelId: string,
+	subscriptionManaged: boolean,
+): string {
 	if (modelId === "glm-5.2" && GLM52_PRICING_BASIS === "glm-5.1-rate-proxy") {
 		return subscriptionManaged
 			? "GLM-5.1-rate proxy (comparison only; not your Coding Plan bill)"

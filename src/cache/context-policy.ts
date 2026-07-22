@@ -6,10 +6,7 @@ const ZAI_CODING_PLAN_PROVIDERS = new Set([
 	"zai-coding-cn",
 	"zai-coding-plan",
 ]);
-const ZAI_PROVIDERS = new Set([
-	...ZAI_CODING_PLAN_PROVIDERS,
-	"zai-platform",
-]);
+const ZAI_PROVIDERS = new Set([...ZAI_CODING_PLAN_PROVIDERS, "zai-platform"]);
 
 export const DYNAMIC_CONTEXT_MARKER = "\n\n--- dynamic context ---\n";
 

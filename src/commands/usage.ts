@@ -1,10 +1,12 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { computeCacheRatios } from "../cache/metrics.ts";
+import { buildPlatformModelCatalog } from "../model-catalog.ts";
 import {
 	fetchQuotaLimit,
 	formatQuotaLimit,
 	monitorBaseFromModelUrl,
 } from "../usage-monitor.ts";
+import { computeUsageCostBreakdown } from "../usage-cost.ts";
 import { getCacheMetricsStore } from "./cache-state.ts";
 import type { ZaiCommandDeps } from "./deps.ts";
 import {
@@ -18,6 +20,10 @@ import {
 	isSubscriptionManaged,
 	requireZaiModel,
 } from "./helpers.ts";
+
+function formatContribution(label: string, cost: number, share: number): string {
+	return `  ${label}: ${formatDollarCost(cost)} (${formatPercent(share)} of equivalent total)`;
+}
 
 export function registerZaiUsageCommand(
 	pi: ExtensionAPI,
@@ -56,6 +62,26 @@ export function registerZaiUsageCommand(
 					? `Estimated dollar cost: ${formatDollarCost(sessionTotals.cost)} (Platform API pricing metadata)`
 					: "Dollar cost: unavailable";
 
+			const platformModel = buildPlatformModelCatalog().find(
+				(candidate) => candidate.id === model.id,
+			);
+			const equivalent = platformModel
+				? computeUsageCostBreakdown(
+						{
+							input: sessionTotals.input,
+							cacheRead: sessionTotals.cacheRead,
+							cacheWrite: sessionTotals.cacheWrite,
+							output: sessionTotals.output,
+						},
+						{
+							input: platformModel.cost.input,
+							cacheRead: platformModel.cost.cacheRead,
+							cacheWrite: platformModel.cost.cacheWrite,
+							output: platformModel.cost.output,
+						},
+					)
+				: undefined;
+
 			const lines = [
 				"Z.AI usage",
 				`Extension: @onlinechefgroep/pi-zai ${deps.extensionVersion}`,
@@ -75,10 +101,46 @@ export function registerZaiUsageCommand(
 				`  Session hit ratio: ${formatPercent(sessionRatios.hitRatio)}`,
 				`  Extension rolling hit ratio: ${formatPercent(rollingHitRatio)}`,
 				`  ${costInterpretation}`,
+			];
+
+			if (equivalent) {
+				lines.push(
+					"",
+					isSubscriptionManaged(model)
+						? "Platform-rate equivalent (comparison only; not your Coding Plan bill)"
+						: "Metered cost contribution",
+					formatContribution(
+						"Uncached input",
+						equivalent.uncachedInput.cost,
+						equivalent.uncachedInput.share,
+					),
+					formatContribution(
+						"Cached input",
+						equivalent.cachedInput.cost,
+						equivalent.cachedInput.share,
+					),
+					formatContribution(
+						"Cache write",
+						equivalent.cacheWrite.cost,
+						equivalent.cacheWrite.share,
+					),
+					formatContribution(
+						"Output",
+						equivalent.output.cost,
+						equivalent.output.share,
+					),
+					`  Equivalent total: ${formatDollarCost(equivalent.total)}`,
+					`  Without cache: ${formatDollarCost(equivalent.noCacheEquivalent)}`,
+					`  Cache savings: ${formatDollarCost(equivalent.cacheSavingsEquivalent)}`,
+					"  Per-token price and total-cost share are different quantities.",
+				);
+			}
+
+			lines.push(
 				"",
 				"Last request",
 				lastUsage ? `  ${formatUsageLine(lastUsage)}` : "  none",
-			];
+			);
 
 			const monitorBase = monitorBaseFromModelUrl(model.baseUrl);
 			const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);

@@ -1,27 +1,22 @@
-# Publishes @onlinechefgroep/pi-zai to npmjs.org and mirrors to GitHub Packages.
-#
-# This is the *manual tag-push fallback* path. The primary publisher is
-# release.yml, which auto-publishes on pushes to main that change the package
-# version and then creates the version tag via the default GITHUB_TOKEN. A tag
-# created with GITHUB_TOKEN does not emit a new push event, so this workflow is
-# not normally re-triggered by release.yml. It exists for explicit, manual
-# `git push origin v<x>` releases. Idempotent per registry: skips cleanly if the
-# version is already on that registry. npmjs requires the NPM_TOKEN org secret;
-# GitHub Packages uses GITHUB_TOKEN with packages:write.
-name: Publish to npmjs.org (Public)
+# Manual tag-push fallback for @onlinechefgroep/pi-zai.
+# Publishes to npmjs.org and mirrors to GitHub Packages.
+# Primary path is release.yml. A tag created with GITHUB_TOKEN by release.yml
+# does not re-trigger this workflow. Idempotent per registry. npmjs needs
+# NPM_TOKEN; GitHub Packages uses GITHUB_TOKEN with packages:write. Jobs are
+# independent so a GH Packages failure never blocks npmjs.
+name: Publish package registries
 
 on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: read
-  id-token: write
-  packages: write
-
 jobs:
-  publish:
+  npmjs:
+    if: github.repository == 'OnlineChefGroep/pi-zai'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -40,7 +35,7 @@ jobs:
           v=$(node -p "require('./package.json').version")
           printf 'version=%s\n' "$v" >> "$GITHUB_OUTPUT"
       - name: Check npmjs.org
-        id: npmjs
+        id: registry
         env:
           PACKAGE_VERSION: ${{ steps.package.outputs.version }}
         run: |
@@ -49,75 +44,65 @@ jobs:
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
-      - name: Check GitHub Packages
-        id: ghpkg
-        env:
-          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          userconfig="$(mktemp)"
-          trap 'rm -f "$userconfig"' EXIT
-          {
-            printf '%s\n' '@onlinechefgroep:registry=https://npm.pkg.github.com'
-            printf '%s\n' "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}"
-          } >"$userconfig"
-
-          set +e
-          out="$(npm view "@onlinechefgroep/pi-zai@$PACKAGE_VERSION" version --userconfig "$userconfig" --json 2>&1)"
-          status=$?
-          set -e
-
-          if [ "$status" -eq 0 ]; then
-            echo "published=true" >> "$GITHUB_OUTPUT"
-          elif printf '%s\n' "$out" | grep -Eqi 'E404|404 Not Found|code E404'; then
-            echo "published=false" >> "$GITHUB_OUTPUT"
-          else
-            printf '%s\n' "$out" >&2
-            exit 1
-          fi
-      - name: Decide whether to build
-        id: gate
-        run: |
-          if [ "${{ steps.npmjs.outputs.published }}" != "true" ] || [ "${{ steps.ghpkg.outputs.published }}" != "true" ]; then
-            echo "needed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "needed=false" >> "$GITHUB_OUTPUT"
-          fi
-      - if: steps.gate.outputs.needed == 'true'
+      - if: steps.registry.outputs.published != 'true'
         run: npm ci --ignore-scripts
-      - if: steps.gate.outputs.needed == 'true'
+      - if: steps.registry.outputs.published != 'true'
         run: npm ci --ignore-scripts --prefix worker/telemetry
-      - if: steps.gate.outputs.needed == 'true'
+      - if: steps.registry.outputs.published != 'true'
         run: npm run lint
-      - if: steps.gate.outputs.needed == 'true'
+      - if: steps.registry.outputs.published != 'true'
         run: npm run build
-      - if: steps.gate.outputs.needed == 'true'
+      - if: steps.registry.outputs.published != 'true'
         run: npm test
-      - if: steps.gate.outputs.needed == 'true'
+      - if: steps.registry.outputs.published != 'true'
         run: npm run check:consumer-install
-      - if: steps.gate.outputs.needed == 'true'
+      - if: steps.registry.outputs.published != 'true'
         run: node scripts/worker-audit.mjs
       - name: Publish to npmjs.org
-        if: steps.npmjs.outputs.published != 'true'
+        if: steps.registry.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public --provenance
+
+  github-packages:
+    if: github.repository == 'OnlineChefGroep/pi-zai'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            worker/telemetry/package-lock.json
+      - name: Check GitHub Packages
+        id: ghpkg
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/ci/github-packages.sh check
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm ci --ignore-scripts --prefix worker/telemetry
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm run lint
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm run build
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm test
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm run check:consumer-install
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: node scripts/worker-audit.mjs
       - name: Publish to GitHub Packages
         if: steps.ghpkg.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          userconfig="$(mktemp)"
-          trap 'rm -f "$userconfig"' EXIT
-          {
-            printf '%s\n' '@onlinechefgroep:registry=https://npm.pkg.github.com'
-            printf '%s\n' "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}"
-          } >"$userconfig"
-
-          if [ ! -f dist/index.js ]; then
-            npm run build
-          fi
-
-          npm publish --access public --ignore-scripts --userconfig "$userconfig"
+        run: bash scripts/ci/github-packages.sh publish

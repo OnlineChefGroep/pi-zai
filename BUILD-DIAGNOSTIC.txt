@@ -1,0 +1,12 @@
+
+> @onlinechefgroep/pi-zai@0.5.4 prebuild
+> node scripts/generate-version.mjs
+
+Wrote /home/runner/work/pi-zai/pi-zai/src/version.generated.ts (0.5.4)
+
+> @onlinechefgroep/pi-zai@0.5.4 build
+> tsc -p tsconfig.build.json
+
+src/commands/doctor.ts(377,46): error TS2554: Expected 0 arguments, but got 1.
+
+exit_code=2

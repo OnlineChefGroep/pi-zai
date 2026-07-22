@@ -11,15 +11,16 @@ type Handler = (
 	ctx: ExtensionContext,
 ) => Promise<unknown> | unknown;
 
-export type RegisteredCommand = {
-	name: string;
-	description?: string;
-};
-
 type CommandHandler = (
 	args: string,
 	ctx: ExtensionContext,
 ) => Promise<unknown> | unknown;
+
+export type RegisteredCommand = {
+	name: string;
+	description?: string;
+	handler?: CommandHandler;
+};
 
 export type MockExtensionApi = ExtensionAPI & {
 	trigger(
@@ -133,11 +134,6 @@ export function createMockExtensionApi(_options: {
 		unregister: [] as string[],
 	};
 	const commandCalls: RegisteredCommand[] = [];
-	const registeredCommands: Array<{
-		name: string;
-		description?: string;
-		handler?: CommandHandler;
-	}> = [];
 	const registeredTools: Array<{
 		name: string;
 		description?: string;
@@ -184,8 +180,7 @@ export function createMockExtensionApi(_options: {
 				handler?: CommandHandler;
 			},
 		) {
-			commandCalls.push({ name, description: options.description });
-			registeredCommands.push({
+			commandCalls.push({
 				name,
 				description: options.description,
 				handler: options.handler,
@@ -274,9 +269,7 @@ export function createMockExtensionApi(_options: {
 			return tool.execute("test-tool-call", params);
 		},
 		async executeCommand(name: string, args: string, ctx: ExtensionContext) {
-			const command = registeredCommands.find(
-				(candidate) => candidate.name === name,
-			);
+			const command = commandCalls.find((candidate) => candidate.name === name);
 			if (!command?.handler) {
 				throw new Error(`Command ${name} is not executable`);
 			}
@@ -296,7 +289,7 @@ export const assistantUsage = {
 export async function runExtensionLifecycle(
 	pi: MockExtensionApi,
 	ctx: ExtensionContext,
-	options: { safePromptMode?: boolean } = {},
+	options: { safePromptMode?: boolean; skipShutdown?: boolean } = {},
 ): Promise<void> {
 	// In-process only: triggers each pi.on() handler from index.ts once.
 	// No Pi runtime, no provider calls, no LLM tokens.
@@ -393,5 +386,7 @@ export async function runExtensionLifecycle(
 		},
 		ctx,
 	);
-	await pi.trigger("session_shutdown", { type: "session_shutdown" }, ctx);
+	if (!options.skipShutdown) {
+		await pi.trigger("session_shutdown", { type: "session_shutdown" }, ctx);
+	}
 }

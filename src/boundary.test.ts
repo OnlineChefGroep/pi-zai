@@ -15,7 +15,6 @@ import { join } from "node:path";
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-	assistantUsage,
 	createExtensionContext,
 	createMockExtensionApi,
 	createZaiCodingCnModel,
@@ -117,38 +116,7 @@ describe("extension boundary (runtime)", () => {
 			notifications.push(String(message));
 		};
 
-		await pi.trigger(
-			"session_start",
-			{ type: "session_start", reason: "startup" },
-			ctx,
-		);
-		await pi.trigger(
-			"model_select",
-			{ type: "model_select", model: ctx.model },
-			ctx,
-		);
-		await pi.trigger(
-			"before_agent_start",
-			{ type: "before_agent_start", systemPrompt: "stable system prompt" },
-			ctx,
-		);
-		await pi.trigger(
-			"message_end",
-			{
-				type: "message_end",
-				message: { role: "assistant", usage: assistantUsage },
-			},
-			ctx,
-		);
-		await pi.trigger(
-			"turn_end",
-			{
-				type: "turn_end",
-				message: { role: "assistant", usage: assistantUsage },
-			},
-			ctx,
-		);
-
+		await runExtensionLifecycle(pi, ctx, { skipShutdown: true });
 		await pi.executeCommand("zai-data", "status", ctx);
 		await pi.executeCommand("zai", "", ctx);
 
@@ -157,6 +125,9 @@ describe("extension boundary (runtime)", () => {
 		);
 		expect(dataStatus).toBeDefined();
 		expect(dataStatus).toMatch(/Attempts:\s*[1-9]/);
+		expect(notifications.some((text) => text.includes("Z.AI status"))).toBe(
+			true,
+		);
 
 		await pi.trigger("session_shutdown", { type: "session_shutdown" }, ctx);
 	});

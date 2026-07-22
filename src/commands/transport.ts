@@ -15,7 +15,10 @@ function formatTransportSummary(summary: TransportSummary): string {
 		...formatHeading("Z.AI transport"),
 		formatKeyValue("Logical turns", summary.attempts),
 		formatKeyValue("Terminal errors", summary.errors),
-		formatKeyValue("Avg request → headers", formatMs(summary.avgRequestToHeadersMs)),
+		formatKeyValue(
+			"Avg request → headers",
+			formatMs(summary.avgRequestToHeadersMs),
+		),
 		formatKeyValue(
 			"Avg turn → first delta",
 			formatMs(summary.avgRequestToFirstDeltaMs),

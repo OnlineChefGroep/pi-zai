@@ -180,6 +180,8 @@ export function registerZaiDoctorCommand(
 			const config = deps.getConfig(ctx.cwd);
 			const codingModel = ctx.modelRegistry.find("zai", "glm-5.2");
 			const platformModel = ctx.modelRegistry.find("zai-platform", "glm-5.2");
+			const platformRegistered =
+				deps.isPlatformProviderRegistered(ctx) && platformModel !== undefined;
 			const active = ctx.model;
 
 			checks.push({
@@ -205,11 +207,8 @@ export function registerZaiDoctorCommand(
 
 			checks.push({
 				name: "Platform provider (optional)",
-				status:
-					deps.isPlatformProviderRegistered(ctx) && platformModel
-						? "pass"
-						: "skip",
-				detail: platformModel
+				status: platformRegistered ? "pass" : "skip",
+				detail: platformRegistered
 					? "zai-platform/glm-5.2 present in models.json"
 					: "Not registered by pi-zai; add zai-platform manually via models.json if needed",
 			});
@@ -319,10 +318,16 @@ export function registerZaiDoctorCommand(
 
 			checks.push({
 				name: "Platform pricing metadata",
-				status: hasPlatformPricing(platformModel) ? "pass" : "warn",
-				detail: hasPlatformPricing(platformModel)
-					? "Platform glm-5.2 has non-zero pricing metadata"
-					: "Platform glm-5.2 pricing metadata missing or zero",
+				status: !platformRegistered
+					? "skip"
+					: hasPlatformPricing(platformModel)
+						? "pass"
+						: "warn",
+				detail: !platformRegistered
+					? "Platform provider is not registered; pricing metadata check is not applicable"
+					: hasPlatformPricing(platformModel)
+						? "Platform glm-5.2 has non-zero local pricing metadata; verify it against current public rates before billing use"
+						: "Platform glm-5.2 pricing metadata missing or zero",
 			});
 
 			const stableSample = canonicalStableSystemPrefix(
@@ -360,62 +365,46 @@ export function registerZaiDoctorCommand(
 			checks.push({
 				name: "Compaction policy",
 				status: compactionOk ? "pass" : "fail",
-				detail: compactionOk
-					? "Deterministic sections; compaction instructed not to replay hidden reasoning"
-					: "Compaction template missing required sections",
+				detail:
+					"Deterministic sections; compaction instructed not to replay hidden reasoning",
 			});
 
-			if (credentialConfigured && thinkingModel) {
-				checks.push(await runNetworkProbe(ctx, thinkingModel));
-				checks.push(await runConnectionStabilityProbe(ctx, thinkingModel));
-			} else {
-				checks.push({
-					name: "Network probe",
-					status: "skip",
-					detail: "Skipped because credentials are not configured.",
-				});
-				checks.push({
-					name: "Connection stability",
-					status: "skip",
-					detail: "Skipped because credentials are not configured.",
-				});
+			if (active) {
+				checks.push(await runNetworkProbe(ctx, active));
+				checks.push(await runConnectionStabilityProbe(ctx, active));
 			}
 
-			const retrySettings = readPiRetrySettings();
+			const retrySettings = readPiRetrySettings(ctx.cwd);
 			const retryAdvice = formatRetrySettingsAdvice(retrySettings);
 			checks.push({
 				name: "Pi retry settings",
 				status: retryAdvice ? "warn" : "pass",
 				detail: retryAdvice
-					? `${retryAdvice}. Suggested snippet:\n${formatRecommendedRetrySettingsJson()}`
+					? `${retryAdvice} Recommended settings: ${formatRecommendedRetrySettingsJson()}`
 					: `enabled=${retrySettings.enabled}, agentMaxRetries=${retrySettings.agentMaxRetries}, providerMaxRetries=${retrySettings.providerMaxRetries}`,
 			});
 
-			const zaiCheck = requireZaiModel(ctx);
-			if ("error" in zaiCheck) {
-				checks.push({
-					name: "Active Z.AI session",
-					status: "warn",
-					detail: zaiCheck.error,
-				});
-			} else {
-				checks.push({
-					name: "Active Z.AI session",
-					status: "pass",
-					detail: `${zaiCheck.model.provider}/${zaiCheck.model.id}`,
-				});
-			}
+			const activeCheck = requireZaiModel(ctx);
+			checks.push({
+				name: "Active Z.AI session",
+				status: "error" in activeCheck ? "warn" : "pass",
+				detail:
+					"error" in activeCheck
+						? activeCheck.error
+						: `${activeCheck.model.provider}/${activeCheck.model.id}`,
+			});
 
-			const lines = [
-				"Z.AI doctor",
-				"",
-				...checks.map(
-					(check) =>
-						`[${statusIcon(check.status)}] ${check.name}: ${check.detail}`,
-				),
-			];
-			const hasFail = checks.some((check) => check.status === "fail");
-			ctx.ui.notify(lines.join("\n"), hasFail ? "error" : "info");
+			ctx.ui.notify(
+				[
+					"Z.AI doctor",
+					"",
+					...checks.map(
+						(check) =>
+							`[${statusIcon(check.status)}] ${check.name}: ${check.detail}`,
+					),
+				].join("\n"),
+				checks.some((check) => check.status === "fail") ? "error" : "info",
+			);
 		},
 	});
 }

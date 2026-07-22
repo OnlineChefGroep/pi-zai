@@ -95,7 +95,7 @@ export function formatBenchmarkRunReport(record: BenchmarkRunRecord): string {
 		`  Duration: ${Math.round(report.durationMs / 1000)}s`,
 		`  Turns observed: ${report.turnsObserved}`,
 		`  Cache hit ratio: ${(report.cache.cacheHitRatio * 100).toFixed(1)}%`,
-		`  Transport errors: ${report.transport.errors}`,
+		`  Terminal transport errors: ${report.transport.errors}`,
 		"  Sample gates:",
 		...gateLines,
 	].join("\n");
@@ -127,10 +127,11 @@ export function formatBenchmarkGatesSummary(
 			([key, count]) => `  ${key}: ${count}`,
 		),
 		"",
-		"Targets:",
+		"Automated A1-A3 targets:",
 		`  ${BENCHMARK_SAMPLE_GATES.sessionsPerVariantScenario} sessions per variant/scenario`,
-		`  ${BENCHMARK_SAMPLE_GATES.minTotalTurnsA0A3}+ total turns across A0-A3 before default changes`,
-		`  ${Math.round(BENCHMARK_SAMPLE_GATES.medianGapForAffinity * 100)}pp median cache-hit gap for affinity winner`,
+		`  ${BENCHMARK_SAMPLE_GATES.minTotalTurnsA1A3}+ total turns across A1-A3 before default changes`,
+		`  ${Math.round(BENCHMARK_SAMPLE_GATES.minRelativeMissReductionForAffinity * 100)}% relative miss-rate reduction for affinity`,
+		"  A0 remains an external native-Pi control for extension-overhead claims",
 	];
 
 	const median = (values: number[]): number => {
@@ -153,10 +154,16 @@ export function formatBenchmarkGatesSummary(
 		if (affinityRuns.length === 0 || baselineRuns.length === 0) continue;
 		const a3Median = median(cacheHitRatios(affinityRuns));
 		const a1Median = median(cacheHitRatios(baselineRuns));
-		const gapPp = Math.round((a3Median - a1Median) * 100);
+		const absoluteGapPp = (a3Median - a1Median) * 100;
+		const a1Miss = Math.max(0, 1 - a1Median);
+		const a3Miss = Math.max(0, 1 - a3Median);
+		const relativeMissReduction = a1Miss > 0 ? (a1Miss - a3Miss) / a1Miss : 0;
+		const passed =
+			relativeMissReduction >=
+			BENCHMARK_SAMPLE_GATES.minRelativeMissReductionForAffinity;
 		lines.push(
 			"",
-			`A3 vs A1 median cache-hit gap (${scenario}): ${gapPp}pp (need ${Math.round(BENCHMARK_SAMPLE_GATES.medianGapForAffinity * 100)}pp)`,
+			`A3 vs A1 (${scenario}): ${absoluteGapPp.toFixed(2)}pp hit-rate gap; ${(relativeMissReduction * 100).toFixed(1)}% relative miss reduction (${passed ? "pass" : "fail"})`,
 		);
 	}
 

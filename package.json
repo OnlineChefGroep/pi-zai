@@ -26,13 +26,13 @@
 	},
 	"pi": {
 		"extensions": [
-			"./dist/index.js"
+			"./dist/extension.js"
 		]
 	},
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
+			"types": "./dist/extension.d.ts",
+			"import": "./dist/extension.js"
 		}
 	},
 	"files": [

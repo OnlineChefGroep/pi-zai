@@ -13,10 +13,33 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
   job (`scripts/ci/github-packages.sh`) so a mirror failure never blocks npmjs
   or the GitHub Release/tag. Re-run `Release` via `workflow_dispatch` to
   backfill a version that is already on npmjs.
+- `/zai-usage` now shows a GLM Platform-rate equivalent broken down by
+  uncached input, cached input, cache write, and output. It explicitly separates
+  per-token price from each category's share of total session cost.
 
 ### Changed
 
+- The published Pi entrypoint now preserves native Pi request identity by
+  suppressing only the legacy `pi-zai/<version>` User-Agent and extension-added
+  `Accept-Language` values. Caller-provided headers remain untouched and
+  experimental `X-Session-Id` affinity stays opt-in.
+- `/zai-transport` labels stored records as logical turns and its tool latency as
+  summed tool time per turn, matching the actual storage semantics.
+- Benchmark A3 now isolates affinity from prompt normalization by comparing
+  A1 observe/off against A3 observe/experimental.
+- Affinity gates use relative miss-rate reduction instead of a fixed five-point
+  hit-rate gap that becomes impossible near a 98–99% baseline.
+- A0 instructions now state that a native-Pi run cannot invoke pi-zai commands
+  while the extension is disabled and must be captured externally.
+
 ### Fixed
+
+- Default observe mode no longer exposes a pi-zai-specific client fingerprint to
+  providers that may route or throttle requests by client headers.
+- Benchmark documentation no longer attributes A2 prompt-normalization effects
+  to A3 affinity.
+- Transport output no longer presents average tool time per logical turn as if
+  it were latency per individual tool execution.
 
 ### Removed
 
@@ -197,7 +220,6 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 - README restructured with quick start and documentation index
 - `/zai` and `/zai-usage` show extension version; clamp invalid thinking levels for GLM-5.2
-- Quota fetch retries auth schemes and transient network errors
 
 ### Fixed
 
@@ -213,12 +235,8 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 - Slash commands: `/zai`, `/zai-endpoint`, `/zai-cache`, `/zai-usage`, `/zai-doctor`
 - Cost-first defaults aligned with the then-assumed upstream behavior (`clear_thinking=true`, preserved thinking off)
 - Initial GLM-5.2 thinking integration documentation
-- README with install, security, cache, and endpoint documentation
+- README with install, security, cache, endpoint documentation
 
 ### Security
 
 - Credential source names only in diagnostics output; API key values never printed
-
-[0.2.0]: https://github.com/onlinechefgroep/pi-zai/releases/tag/v0.2.0
-[0.1.1]: https://github.com/onlinechefgroep/pi-zai/releases/tag/v0.1.1
-[0.1.0]: https://github.com/onlinechefgroep/pi-zai/releases/tag/v0.1.0

@@ -34,7 +34,7 @@ export const BENCHMARK_VARIANTS: readonly BenchmarkVariant[] = [
 		id: "A1",
 		label: "pi-zai observe",
 		description:
-			"Extension loaded; observe-only prompt stability; affinity off",
+			"Extension loaded; observe-only prompt stability; affinity off; native request identity",
 		extensionLoaded: true,
 		settings: {
 			promptStability: { mode: "observe" },
@@ -60,10 +60,10 @@ export const BENCHMARK_VARIANTS: readonly BenchmarkVariant[] = [
 		id: "A3",
 		label: "pi-zai experimental affinity",
 		description:
-			"A2 plus experimental X-Session-Id (benchmark only; not default)",
+			"A1 plus experimental X-Session-Id; safe prompt normalization remains off so affinity is isolated",
 		extensionLoaded: true,
 		settings: {
-			promptStability: { mode: "safe" },
+			promptStability: { mode: "observe" },
 			sessionAffinity: "experimental",
 			metrics: { mode: "local" },
 			telemetry: { mode: "off" },
@@ -109,8 +109,8 @@ export const BENCHMARK_SAMPLE_GATES = {
 	sessionsPerVariantScenario: 5,
 	turnsPerSession: 12,
 	minTurnsPerVariant: 60,
-	minTotalTurnsA0A3: 240,
-	medianGapForAffinity: 0.05,
+	minTotalTurnsA1A3: 180,
+	minRelativeMissReductionForAffinity: 0.25,
 } as const;
 
 export function findBenchmarkVariant(id: string): BenchmarkVariant | undefined {
@@ -141,11 +141,14 @@ export function formatBenchmarkManifest(): string {
 				`  ${scenario.id}  (${scenario.turns} turns) — ${scenario.description}`,
 		),
 		"",
-		"Sample gates before changing defaults:",
+		"Automated gates before changing A1-A3 defaults:",
 		`  ${BENCHMARK_SAMPLE_GATES.sessionsPerVariantScenario} sessions per variant/scenario`,
 		`  ${BENCHMARK_SAMPLE_GATES.turnsPerSession}+ turns per session`,
-		`  ${BENCHMARK_SAMPLE_GATES.minTotalTurnsA0A3}+ total measured turns across A0-A3`,
-		`  ${Math.round(BENCHMARK_SAMPLE_GATES.medianGapForAffinity * 100)}pp median cache-hit gap for affinity winner`,
+		`  ${BENCHMARK_SAMPLE_GATES.minTotalTurnsA1A3}+ total measured turns across A1-A3`,
+		`  ${Math.round(BENCHMARK_SAMPLE_GATES.minRelativeMissReductionForAffinity * 100)}% relative miss-rate reduction for affinity`,
+		"",
+		"A0 is an external native-Pi control. It cannot invoke pi-zai commands while the extension is disabled.",
+		"Use A0 only for extension-overhead claims and retain its native Pi Session Info / JSONL separately.",
 		"",
 		"Live cache-affinity A/B: npm run benchmark:cache-affinity",
 		"Run tracking: /zai-benchmark start <A1|A2|A3> [scenario]",
@@ -172,17 +175,36 @@ export function formatBenchmarkInstructions(
 		return `Unknown scenario "${scenarioId}".`;
 	}
 
-	const settingsJson = JSON.stringify({ zai: variant.settings }, null, 2);
+	if (!variant.extensionLoaded) {
+		return [
+			`Benchmark instructions: ${variant.id} / ${scenario.id}`,
+			"",
+			variant.description,
+			"",
+			"Setup:",
+			"  1. Disable or uninstall pi-zai and fully restart Pi",
+			"  2. Select the same Z.AI provider, endpoint, model, thinking level, and toolset used by A1",
+			`  3. Run scenario "${scenario.label}" (${scenario.turns} turns)`,
+			`     ${scenario.description}`,
+			"",
+			"Record externally:",
+			"  Pi native Session Info token totals and cacheRead fields",
+			"  Native session JSONL with timestamps, stop reasons, and errors",
+			"  The exact host, network, plan tier, provider, endpoint, model, and toolset",
+			"",
+			"A0 cannot call /zai-cache, /zai-transport, or /zai-data because pi-zai is intentionally absent.",
+			"Do not enter A0 into automated A1-A3 gates until an explicit native-log importer exists.",
+		].join("\n");
+	}
 
+	const settingsJson = JSON.stringify({ zai: variant.settings }, null, 2);
 	return [
 		`Benchmark instructions: ${variant.id} / ${scenario.id}`,
 		"",
 		variant.description,
 		"",
 		"Setup:",
-		variant.extensionLoaded
-			? "  1. Install pi-zai and /reload"
-			: "  1. Run Pi without pi-zai (A0 control)",
+		"  1. Install pi-zai and /reload",
 		"  2. Apply settings in .pi/settings.json or ~/.pi/agent/settings.json:",
 		...settingsJson.split("\n").map((line) => `     ${line}`),
 		"  3. Select the same Z.AI model/provider across variants",

@@ -143,6 +143,10 @@ export function registerZaiStatusCommand(
 				formatKeyValue("Metrics", config.metrics.mode),
 				formatKeyValue("Telemetry", config.telemetryMode),
 				formatKeyValue("Affinity", config.sessionAffinity),
+				formatKeyValue(
+					"Request identity",
+					"native Pi headers (pi-zai identity suppressed)",
+				),
 				formatKeyValue("Prompt mode", config.promptStabilityMode),
 				...formatSection("Last successful Z.AI usage", [
 					lastUsage ? formatUsageLine(lastUsage) : "none",

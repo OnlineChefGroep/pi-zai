@@ -35,18 +35,12 @@ Tests are fully mock-based — no network, no LLM, no external services.
 Full manual E2E inside a live Pi session needs a Z.AI model + credentials
 (`ZAI_API_KEY` or `/login`) and an interactive TUI, so `pi -p` (print mode) will
 hang waiting on a model provider when no key is configured. To exercise core
-functionality without credentials, drive the extension against Pi's
-`ExtensionAPI` the way `src/boundary.test.ts` does (via
-`test/mock-extension-api.ts`): activate `piZaiExtension(pi)`, fire the
-`session_start` → `turn_end` hooks to record a metric to SQLite, then invoke the
-`/zai-data` command handler to read it back. Query commands **before**
-`session_shutdown`, which tears down the metrics store.
-
-Gotcha: `createMockExtensionApi().registerCommand` only records command *names*
-(for assertion), not handlers. To call `/zai-data` (or any command) from a
-one-off script, wrap `registerCommand` before `piZaiExtension(pi)` and stash
-`options.handler`. Also stub `ctx.sessionManager.getEntries()` (return `[]`) if
-you invoke `/zai`, which iterates session entries.
+functionality without credentials, use `test/mock-extension-api.ts`: activate
+`piZaiExtension(pi)`, fire `session_start` → `turn_end` to record a metric to
+SQLite, then `pi.executeCommand("zai-data", "status", ctx)` to read it back
+(see the "records a local metric and reads it back via /zai-data" case in
+`src/boundary.test.ts`). Query commands **before** `session_shutdown`, which
+tears down the metrics store.
 
 ### Optional / gated
 

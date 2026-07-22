@@ -16,6 +16,11 @@ export type RegisteredCommand = {
 	description?: string;
 };
 
+type CommandHandler = (
+	args: string,
+	ctx: ExtensionContext,
+) => Promise<unknown> | unknown;
+
 export type MockExtensionApi = ExtensionAPI & {
 	trigger(
 		event: string,
@@ -28,6 +33,11 @@ export type MockExtensionApi = ExtensionAPI & {
 	};
 	commandCalls: RegisteredCommand[];
 	executeTool(name: string, params?: Record<string, unknown>): Promise<unknown>;
+	executeCommand(
+		name: string,
+		args: string,
+		ctx: ExtensionContext,
+	): Promise<unknown>;
 };
 
 export function createZaiModel(): ZaiModel {
@@ -94,6 +104,7 @@ export function createExtensionContext(
 		sessionManager: {
 			getSessionId: () => "test-session-id",
 			getBranch: () => [],
+			getEntries: () => [],
 		} as ExtensionContext["sessionManager"],
 		modelRegistry: {
 			getApiKey: () => undefined,
@@ -122,6 +133,11 @@ export function createMockExtensionApi(_options: {
 		unregister: [] as string[],
 	};
 	const commandCalls: RegisteredCommand[] = [];
+	const registeredCommands: Array<{
+		name: string;
+		description?: string;
+		handler?: CommandHandler;
+	}> = [];
 	const registeredTools: Array<{
 		name: string;
 		description?: string;
@@ -161,8 +177,19 @@ export function createMockExtensionApi(_options: {
 		unregisterProvider(name: string) {
 			providerCalls.unregister.push(name);
 		},
-		registerCommand(name: string, options: { description?: string }) {
+		registerCommand(
+			name: string,
+			options: {
+				description?: string;
+				handler?: CommandHandler;
+			},
+		) {
 			commandCalls.push({ name, description: options.description });
+			registeredCommands.push({
+				name,
+				description: options.description,
+				handler: options.handler,
+			});
 		},
 		registerTool(definition: {
 			name: string;
@@ -245,6 +272,15 @@ export function createMockExtensionApi(_options: {
 			const tool = registeredTools.find((candidate) => candidate.name === name);
 			if (!tool?.execute) throw new Error(`Tool ${name} is not executable`);
 			return tool.execute("test-tool-call", params);
+		},
+		async executeCommand(name: string, args: string, ctx: ExtensionContext) {
+			const command = registeredCommands.find(
+				(candidate) => candidate.name === name,
+			);
+			if (!command?.handler) {
+				throw new Error(`Command ${name} is not executable`);
+			}
+			return command.handler(args, ctx);
 		},
 	}) as unknown as MockExtensionApi;
 }

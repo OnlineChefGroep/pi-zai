@@ -15,6 +15,7 @@ import { join } from "node:path";
 import { CONFIG_DIR_NAME } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	assistantUsage,
 	createExtensionContext,
 	createMockExtensionApi,
 	createZaiCodingCnModel,
@@ -104,6 +105,60 @@ describe("extension boundary (runtime)", () => {
 		expect(pi.commandCalls.map((command) => command.name).sort()).toEqual(
 			[...EXPECTED_COMMANDS].sort(),
 		);
+	});
+
+	it("records a local metric and reads it back via /zai-data", async () => {
+		const cwd = tempCwd();
+		const pi = createMockExtensionApi({ cwd, model: createZaiModel() });
+		piZaiExtension(pi);
+		const notifications: string[] = [];
+		const ctx = createExtensionContext(cwd);
+		ctx.ui.notify = (message) => {
+			notifications.push(String(message));
+		};
+
+		await pi.trigger(
+			"session_start",
+			{ type: "session_start", reason: "startup" },
+			ctx,
+		);
+		await pi.trigger(
+			"model_select",
+			{ type: "model_select", model: ctx.model },
+			ctx,
+		);
+		await pi.trigger(
+			"before_agent_start",
+			{ type: "before_agent_start", systemPrompt: "stable system prompt" },
+			ctx,
+		);
+		await pi.trigger(
+			"message_end",
+			{
+				type: "message_end",
+				message: { role: "assistant", usage: assistantUsage },
+			},
+			ctx,
+		);
+		await pi.trigger(
+			"turn_end",
+			{
+				type: "turn_end",
+				message: { role: "assistant", usage: assistantUsage },
+			},
+			ctx,
+		);
+
+		await pi.executeCommand("zai-data", "status", ctx);
+		await pi.executeCommand("zai", "", ctx);
+
+		const dataStatus = notifications.find((text) =>
+			text.includes("Z.AI local metrics"),
+		);
+		expect(dataStatus).toBeDefined();
+		expect(dataStatus).toMatch(/Attempts:\s*[1-9]/);
+
+		await pi.trigger("session_shutdown", { type: "session_shutdown" }, ctx);
 	});
 
 	it("does not call fetch across the full extension lifecycle when telemetry is off", async () => {

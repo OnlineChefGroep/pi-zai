@@ -11,9 +11,15 @@ type Handler = (
 	ctx: ExtensionContext,
 ) => Promise<unknown> | unknown;
 
+type CommandHandler = (
+	args: string,
+	ctx: ExtensionContext,
+) => Promise<unknown> | unknown;
+
 export type RegisteredCommand = {
 	name: string;
 	description?: string;
+	handler?: CommandHandler;
 };
 
 export type MockExtensionApi = ExtensionAPI & {
@@ -28,6 +34,11 @@ export type MockExtensionApi = ExtensionAPI & {
 	};
 	commandCalls: RegisteredCommand[];
 	executeTool(name: string, params?: Record<string, unknown>): Promise<unknown>;
+	executeCommand(
+		name: string,
+		args: string,
+		ctx: ExtensionContext,
+	): Promise<unknown>;
 };
 
 export function createZaiModel(): ZaiModel {
@@ -94,6 +105,7 @@ export function createExtensionContext(
 		sessionManager: {
 			getSessionId: () => "test-session-id",
 			getBranch: () => [],
+			getEntries: () => [],
 		} as ExtensionContext["sessionManager"],
 		modelRegistry: {
 			getApiKey: () => undefined,
@@ -161,8 +173,18 @@ export function createMockExtensionApi(_options: {
 		unregisterProvider(name: string) {
 			providerCalls.unregister.push(name);
 		},
-		registerCommand(name: string, options: { description?: string }) {
-			commandCalls.push({ name, description: options.description });
+		registerCommand(
+			name: string,
+			options: {
+				description?: string;
+				handler?: CommandHandler;
+			},
+		) {
+			commandCalls.push({
+				name,
+				description: options.description,
+				handler: options.handler,
+			});
 		},
 		registerTool(definition: {
 			name: string;
@@ -246,6 +268,13 @@ export function createMockExtensionApi(_options: {
 			if (!tool?.execute) throw new Error(`Tool ${name} is not executable`);
 			return tool.execute("test-tool-call", params);
 		},
+		async executeCommand(name: string, args: string, ctx: ExtensionContext) {
+			const command = commandCalls.find((candidate) => candidate.name === name);
+			if (!command?.handler) {
+				throw new Error(`Command ${name} is not executable`);
+			}
+			return command.handler(args, ctx);
+		},
 	}) as unknown as MockExtensionApi;
 }
 
@@ -260,7 +289,7 @@ export const assistantUsage = {
 export async function runExtensionLifecycle(
 	pi: MockExtensionApi,
 	ctx: ExtensionContext,
-	options: { safePromptMode?: boolean } = {},
+	options: { safePromptMode?: boolean; skipShutdown?: boolean } = {},
 ): Promise<void> {
 	// In-process only: triggers each pi.on() handler from index.ts once.
 	// No Pi runtime, no provider calls, no LLM tokens.
@@ -357,5 +386,7 @@ export async function runExtensionLifecycle(
 		},
 		ctx,
 	);
-	await pi.trigger("session_shutdown", { type: "session_shutdown" }, ctx);
+	if (!options.skipShutdown) {
+		await pi.trigger("session_shutdown", { type: "session_shutdown" }, ctx);
+	}
 }

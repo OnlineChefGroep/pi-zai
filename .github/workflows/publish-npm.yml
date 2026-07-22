@@ -1,5 +1,12 @@
-# Publishes @onlinechefgroep/pi-zai to the public npmjs registry.
-# Triggered by any v* tag push. Requires NPM_TOKEN org secret.
+# Publishes @onlinechefgroep/pi-zai to the public npm registry.
+#
+# This is the *manual tag-push fallback* path. The primary publisher is
+# release.yml, which auto-publishes on pushes to main that change the package
+# version and then creates the version tag via the default GITHUB_TOKEN. A tag
+# created with GITHUB_TOKEN does not emit a new push event, so this workflow is
+# not normally re-triggered by release.yml. It exists for explicit, manual
+# `git push origin v<x>` releases. Idempotent: skips cleanly if the version is
+# already on npm. Requires the NPM_TOKEN org secret.
 name: Publish to npmjs.org (Public)
 
 on:
@@ -13,15 +20,48 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: '22.x'
           registry-url: 'https://registry.npmjs.org'
           cache: npm
-      - run: npm ci --ignore-scripts
-      - run: npm run build
-      - run: npm test
-      - run: npm publish --access public
+          cache-dependency-path: |
+            package-lock.json
+            worker/telemetry/package-lock.json
+      - name: Read package version
+        id: package
+        run: |
+          v=$(node -p "require('./package.json').version")
+          printf 'version=%s\n' "$v" >> "$GITHUB_OUTPUT"
+      - name: Skip if already published
+        id: registry
+        env:
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if npm view "@onlinechefgroep/pi-zai@$PACKAGE_VERSION" version --json >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.registry.outputs.published != 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.registry.outputs.published != 'true'
+        run: npm ci --ignore-scripts --prefix worker/telemetry
+      - if: steps.registry.outputs.published != 'true'
+        run: npm run lint
+      - if: steps.registry.outputs.published != 'true'
+        run: npm run build
+      - if: steps.registry.outputs.published != 'true'
+        run: npm test
+      - if: steps.registry.outputs.published != 'true'
+        run: npm run check:consumer-install
+      - if: steps.registry.outputs.published != 'true'
+        run: node scripts/worker-audit.mjs
+      - name: Publish
+        if: steps.registry.outputs.published != 'true'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

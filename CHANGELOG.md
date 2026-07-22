@@ -8,6 +8,11 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Added
 
+- Release workflows now also publish `@onlinechefgroep/pi-zai` to GitHub Packages
+  (`https://github.com/OnlineChefGroep/pi-zai/pkgs/npm/pi-zai`), independently
+  of npmjs.org. Re-run `Release` via `workflow_dispatch` to backfill a version
+  that is already on npmjs.
+
 ### Changed
 
 ### Fixed

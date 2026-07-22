@@ -47,3 +47,8 @@ functionality without credentials, drive the extension against Pi's
 - Live cache-affinity benchmark (`npm run benchmark:cache-affinity`) needs a real
   `ZAI_API_KEY` and network.
 - Telemetry worker deploy needs `CLOUDFLARE_API_TOKEN` + `CLOUDFLARE_ACCOUNT_ID`.
+- GitHub Packages mirror ([pkgs/npm/pi-zai](https://github.com/OnlineChefGroep/pi-zai/pkgs/npm/pi-zai)):
+  published by `release.yml` / `publish-npm.yml` with `packages: write`. Primary
+  install path remains public npmjs; GH Packages needs `read:packages`. Cloud
+  agent tokens often cannot read/write org packages — use Actions
+  `workflow_dispatch` on **Release** to backfill, not a local `npm publish`.

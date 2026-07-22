@@ -8,7 +8,20 @@
 
 ## Install
 
+Primary (public npmjs):
+
 ```bash
+pi install npm:@onlinechefgroep/pi-zai
+```
+
+Optional mirror — [GitHub Packages](https://github.com/OnlineChefGroep/pi-zai/pkgs/npm/pi-zai)
+(requires a GitHub PAT or `GITHUB_TOKEN` with `read:packages`):
+
+```bash
+# ~/.npmrc (or project .npmrc)
+@onlinechefgroep:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+
 pi install npm:@onlinechefgroep/pi-zai
 ```
 

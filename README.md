@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@onlinechefgroep/pi-zai"><img src="https://img.shields.io/npm/v/@onlinechefgroep/pi-zai?style=flat-square&label=npm" alt="npm version" /></a>
+  <a href="https://github.com/OnlineChefGroep/pi-zai/pkgs/npm/pi-zai"><img src="https://img.shields.io/badge/GitHub%20Packages-pi--zai-24292f?style=flat-square" alt="GitHub Packages" /></a>
   <img src="https://img.shields.io/badge/Pi-%E2%89%A50.80.10-24292f?style=flat-square" alt="Pi 0.80.10 or newer" />
   <img src="https://img.shields.io/badge/Node-%E2%89%A522.19-24292f?style=flat-square" alt="Node 22.19 or newer" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-24292f?style=flat-square" alt="MIT license" /></a>
@@ -20,6 +21,8 @@ Pi already owns the agent loop, tools, sessions, streaming, and Z.AI provider. *
 ```bash
 pi install npm:@onlinechefgroep/pi-zai
 ```
+
+Also published to [GitHub Packages](https://github.com/OnlineChefGroep/pi-zai/pkgs/npm/pi-zai) (see [Getting started](docs/getting-started.md) for the authenticated `@onlinechefgroep` registry setup).
 
 Reload Pi, select a Z.AI model, and open the status view:
 

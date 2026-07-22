@@ -18,7 +18,9 @@ const EXTENSION_ACCEPT_LANGUAGE = "en-US,en";
  * exposing a pi-zai client fingerprint to providers that may route or throttle
  * by User-Agent. Experimental X-Session-Id affinity remains opt-in.
  */
-export default function piZaiExtensionWithNativeIdentity(pi: ExtensionAPI): void {
+export default function piZaiExtensionWithNativeIdentity(
+	pi: ExtensionAPI,
+): void {
 	piZaiExtension(pi);
 
 	pi.on("before_provider_headers", async (event) => {

@@ -14,6 +14,17 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Removed
 
+## [0.5.3] - 2026-07-22
+
+### Fixed
+
+- Corrected the documented Pi peer floor to `>=0.80.10` in the `/zai-capabilities` and `/zai-doctor` command output, and in `docs/getting-started.md` / `docs/troubleshooting.md`. These still reported `0.80.7` after the optional peer floor was raised in 0.5.0.
+
+### Changed
+
+- `.github/workflows/release.yml` now also triggers via `workflow_dispatch`, publishes with npm `registry-url` configured for trusted publishing, and skips GitHub release creation idempotently when `v<x>` already exists.
+- `.github/workflows/publish-npm.yml` (manual tag-push fallback) now publishes with `--provenance` and the `id-token: write` permission, matching the primary release path.
+
 ## [0.5.2] - 2026-07-22
 
 ### Removed

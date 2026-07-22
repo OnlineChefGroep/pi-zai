@@ -10,7 +10,7 @@ import type { ZaiCommandDeps } from "./deps.ts";
 import { formatHeading, formatKeyValue, joinCommandLines } from "./format.ts";
 import { requireZaiModel } from "./helpers.ts";
 
-const PI_PEER_FLOOR = "0.80.7";
+const PI_PEER_FLOOR = "0.80.10";
 const PROBE_TIMEOUT_MS = 10_000;
 
 type ProbeSupport = boolean | "unknown";

@@ -1,7 +1,13 @@
 import type { ProviderModelConfig } from "@earendil-works/pi-coding-agent";
 
-/** Verified against https://docs.z.ai/guides/overview/pricing (USD per 1M tokens). */
 export const PLATFORM_BASE_URL = "https://api.z.ai/api/paas/v4";
+
+/**
+ * Z.AI's public pricing table did not list GLM-5.2 when this catalog was
+ * released. The GLM-5.2 comparison uses the published GLM-5.1 rates as a
+ * transparent proxy and must never be presented as a verified GLM-5.2 bill.
+ */
+export const GLM52_PRICING_BASIS = "glm-5.1-rate-proxy" as const;
 
 /** Keep this aligned with Pi's native GLM-5.2 catalog. */
 export const GLM52_THINKING_LEVEL_MAP = {

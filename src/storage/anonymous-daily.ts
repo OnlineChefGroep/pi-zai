@@ -7,7 +7,7 @@ export function utcDayFromMs(timestampMs: number): string {
 export function endpointKindFromProvider(provider: string): string {
 	if (provider === "zai-platform") return "platform";
 	if (provider === "zai-coding-cn") return "coding-cn";
-	if (provider === "zai") return "coding";
+	if (provider === "zai" || provider === "zai-coding-plan") return "coding";
 	return "unknown";
 }
 

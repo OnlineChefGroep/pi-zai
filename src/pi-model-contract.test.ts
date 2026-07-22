@@ -1,10 +1,12 @@
 import { getBuiltinModels } from "@earendil-works/pi-ai/providers/all";
 import { describe, expect, it } from "vitest";
+import { isCodingPlanProvider } from "./cache/context-policy.ts";
 import { resolveZaiCapabilities } from "./capabilities.ts";
 import {
 	isManagedZaiModel,
 	isNativeZaiModel,
 	isPiNativeZaiProvider,
+	isZaiCodingPlanAliasProvider,
 } from "./native-zai.ts";
 import { inferEndpoint, isZaiProvider } from "./state.ts";
 import type { ZaiModel } from "./zai-model.ts";
@@ -71,6 +73,32 @@ describe("installed Pi Z.AI model contract", () => {
 			CN_CODING_BASE,
 		);
 		expect(inferEndpoint("zai-coding-cn", CN_CODING_BASE)).toBe("coding-cn");
+	});
+
+	it("recognizes the runtime zai-coding-plan alias without claiming it is Pi-native", () => {
+		const canonical = globalModels.find((model) => model.id === "glm-5.2");
+		expect(canonical).toBeTruthy();
+		const aliasModel = {
+			...canonical,
+			provider: "zai-coding-plan",
+			baseUrl: GLOBAL_CODING_BASE,
+		} as ZaiModel;
+
+		expect(isZaiProvider(aliasModel.provider)).toBe(true);
+		expect(isCodingPlanProvider(aliasModel.provider)).toBe(true);
+		expect(isZaiCodingPlanAliasProvider(aliasModel.provider)).toBe(true);
+		expect(isPiNativeZaiProvider(aliasModel.provider)).toBe(false);
+		expect(isNativeZaiModel(aliasModel)).toBe(false);
+		expect(isManagedZaiModel(aliasModel)).toBe(true);
+		expect(inferEndpoint(aliasModel.provider, aliasModel.baseUrl)).toBe(
+			"coding",
+		);
+
+		const capabilities = resolveZaiCapabilities(aliasModel, "experimental");
+		expect(capabilities.providerOwnership).toBe("coding-plan-alias");
+		expect(capabilities.usesZaiThinkingFormat).toBe(true);
+		expect(capabilities.streamsToolCalls).toBe(true);
+		expect(capabilities.sessionAffinitySource).toBe("pi-zai");
 	});
 
 	it("recognizes glm-5v-turbo as text+image on both Coding Plan endpoints", () => {

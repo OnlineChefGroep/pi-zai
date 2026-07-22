@@ -1,7 +1,12 @@
 import type { ZaiModel } from "../zai-model.ts";
 import { canonicalizeStablePrefix } from "./fingerprint.ts";
 
-const ZAI_PROVIDERS = new Set(["zai", "zai-coding-cn", "zai-platform"]);
+const ZAI_CODING_PLAN_PROVIDERS = new Set([
+	"zai",
+	"zai-coding-cn",
+	"zai-coding-plan",
+]);
+const ZAI_PROVIDERS = new Set([...ZAI_CODING_PLAN_PROVIDERS, "zai-platform"]);
 
 export const DYNAMIC_CONTEXT_MARKER = "\n\n--- dynamic context ---\n";
 
@@ -28,7 +33,7 @@ export function isZaiModel(model: ZaiModel | undefined): boolean {
 }
 
 export function isCodingPlanProvider(provider: string): boolean {
-	return provider === "zai" || provider === "zai-coding-cn";
+	return ZAI_CODING_PLAN_PROVIDERS.has(provider);
 }
 
 export function isPlatformProvider(provider: string): boolean {

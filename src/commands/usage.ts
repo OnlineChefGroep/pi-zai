@@ -1,6 +1,9 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { computeCacheRatios } from "../cache/metrics.ts";
-import { buildPlatformModelCatalog } from "../model-catalog.ts";
+import {
+	buildPlatformModelCatalog,
+	GLM52_PRICING_BASIS,
+} from "../model-catalog.ts";
 import { computeUsageCostBreakdown } from "../usage-cost.ts";
 import {
 	fetchQuotaLimit,
@@ -27,6 +30,20 @@ function formatContribution(
 	share: number,
 ): string {
 	return `  ${label}: ${formatDollarCost(cost)} (${formatPercent(share)} of equivalent total)`;
+}
+
+function equivalentHeading(
+	modelId: string,
+	subscriptionManaged: boolean,
+): string {
+	if (modelId === "glm-5.2" && GLM52_PRICING_BASIS === "glm-5.1-rate-proxy") {
+		return subscriptionManaged
+			? "GLM-5.1-rate proxy (comparison only; not your Coding Plan bill)"
+			: "GLM-5.1-rate proxy (GLM-5.2 is not in the public pricing table)";
+	}
+	return subscriptionManaged
+		? "Platform-rate equivalent (comparison only; not your Coding Plan bill)"
+		: "Metered cost contribution";
 }
 
 export function registerZaiUsageCommand(
@@ -60,7 +77,8 @@ export function registerZaiUsageCommand(
 					? cacheStats.rolling.hitRatio
 					: sessionRatios.hitRatio;
 
-			const costInterpretation = isSubscriptionManaged(model)
+			const subscriptionManaged = isSubscriptionManaged(model);
+			const costInterpretation = subscriptionManaged
 				? "Dollar cost: subscription-managed (Coding Plan)"
 				: isEstimatedCost(model)
 					? `Estimated dollar cost: ${formatDollarCost(sessionTotals.cost)} (Platform API pricing metadata)`
@@ -110,9 +128,7 @@ export function registerZaiUsageCommand(
 			if (equivalent) {
 				lines.push(
 					"",
-					isSubscriptionManaged(model)
-						? "Platform-rate equivalent (comparison only; not your Coding Plan bill)"
-						: "Metered cost contribution",
+					equivalentHeading(model.id, subscriptionManaged),
 					formatContribution(
 						"Uncached input",
 						equivalent.uncachedInput.cost,

@@ -2,11 +2,16 @@ import type { SessionAffinityMode } from "./config.ts";
 import {
 	isManagedZaiProvider,
 	isPiNativeZaiProvider,
+	isZaiCodingPlanAliasProvider,
 	isZaiPlatformProvider,
 } from "./native-zai.ts";
 import type { ZaiModel } from "./zai-model.ts";
 
-export type ProviderOwnership = "pi-native" | "platform" | "other";
+export type ProviderOwnership =
+	| "pi-native"
+	| "coding-plan-alias"
+	| "platform"
+	| "other";
 export type DynamicToolMode = "deferred" | "full-list-fallback";
 export type SessionAffinitySource = "none" | "pi" | "pi-zai";
 
@@ -31,6 +36,7 @@ function readCompat(model: ZaiModel | undefined): CompatBag {
 
 function resolveOwnership(provider: string | undefined): ProviderOwnership {
 	if (isPiNativeZaiProvider(provider)) return "pi-native";
+	if (isZaiCodingPlanAliasProvider(provider)) return "coding-plan-alias";
 	if (isZaiPlatformProvider(provider)) return "platform";
 	return "other";
 }
@@ -109,10 +115,7 @@ export function resolveZaiCapabilities(
 export function isManagedZaiCapabilities(
 	capabilities: ZaiCapabilities,
 ): boolean {
-	return (
-		capabilities.providerOwnership === "pi-native" ||
-		capabilities.providerOwnership === "platform"
-	);
+	return capabilities.providerOwnership !== "other";
 }
 
 export function usesManagedZaiProvider(model: ZaiModel | undefined): boolean {

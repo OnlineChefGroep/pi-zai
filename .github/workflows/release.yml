@@ -1,8 +1,12 @@
 name: Release
 
 # Primary publish path for @onlinechefgroep/pi-zai.
-# Triggers when package identity / changelog changes on main, or via manual
-# workflow_dispatch after a version bump is already on the branch.
+# Publishes to npmjs.org (public) and mirrors to GitHub Packages
+# (https://github.com/OnlineChefGroep/pi-zai/pkgs/npm/pi-zai).
+# Jobs are independent: a GitHub Packages failure never blocks npmjs or the
+# GitHub Release/tag. Triggers on package identity / changelog changes on main,
+# or via workflow_dispatch (backfill GH Packages when npmjs already has the
+# version). Idempotent per registry.
 on:
   push:
     branches: [main]
@@ -11,20 +15,20 @@ on:
       - package-lock.json
       - CHANGELOG.md
       - .github/workflows/release.yml
+      - scripts/ci/github-packages.sh
   workflow_dispatch:
 
 concurrency:
   group: npm-release
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  id-token: write
-
 jobs:
-  publish:
+  npmjs:
     if: github.repository == 'OnlineChefGroep/pi-zai'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
@@ -41,7 +45,7 @@ jobs:
           package_name=$(node -p "require('./package.json').name")
           package_version=$(node -p "require('./package.json').version")
           printf 'name=%s\nversion=%s\n' "$package_name" "$package_version" >> "$GITHUB_OUTPUT"
-      - name: Check npm registry
+      - name: Check npmjs.org
         id: registry
         env:
           PACKAGE_NAME: ${{ steps.package.outputs.name }}
@@ -68,7 +72,7 @@ jobs:
         run: npm run check:consumer-install
       - if: steps.registry.outputs.published != 'true'
         run: npm run check --prefix worker/telemetry
-      - name: Publish package
+      - name: Publish to npmjs.org
         if: steps.registry.outputs.published != 'true'
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -98,12 +102,64 @@ jobs:
             done < npm-publish-errors.log
             exit "$status"
           fi
+
+  github-packages:
+    if: github.repository == 'OnlineChefGroep/pi-zai'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Check GitHub Packages
+        id: ghpkg
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/ci/github-packages.sh check
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm ci --ignore-scripts
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm ci --ignore-scripts --prefix worker/telemetry
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm run lint
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm run build
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm test
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm run check:package
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm run check:consumer-install
+      - if: steps.ghpkg.outputs.published != 'true'
+        run: npm run check --prefix worker/telemetry
+      - name: Publish to GitHub Packages
+        if: steps.ghpkg.outputs.published != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash scripts/ci/github-packages.sh publish
+
+  github-release:
+    if: github.repository == 'OnlineChefGroep/pi-zai'
+    needs: [npmjs]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
       - name: Create GitHub release and tag
         env:
           GH_TOKEN: ${{ github.token }}
-          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
         run: |
-          tag="v$PACKAGE_VERSION"
+          package_version=$(node -p "require('./package.json').version")
+          tag="v$package_version"
           if ! gh release view "$tag" >/dev/null 2>&1; then
             gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --generate-notes
           else

@@ -122,9 +122,9 @@ Releases are **automated**. The workflow is:
 
 1. Update `CHANGELOG.md` (`[Unreleased]` → `[x.y.z]` with a date) and bump `version` in `package.json`.
 2. Commit and push to `main`.
-3. `.github/workflows/release.yml` detects the `package.json` change, confirms the new version is not yet on npm, runs the full quality gate, publishes to npmjs.org (provenance via OIDC trusted publishing, with an `NPM_TOKEN` fallback), and creates the `vx.y.z` GitHub release and tag.
+3. `.github/workflows/release.yml` detects the `package.json` change, confirms the new version is not yet on each registry, runs the full quality gate, publishes to **npmjs.org** (provenance via OIDC trusted publishing, with an `NPM_TOKEN` fallback) **and** mirrors to **GitHub Packages** ([pkgs/npm/pi-zai](https://github.com/OnlineChefGroep/pi-zai/pkgs/npm/pi-zai)), then creates the `vx.y.z` GitHub release and tag.
 
-The release workflow is idempotent — it skips cleanly if the version is already published — so it is safe to re-run. `.github/workflows/publish-npm.yml` is the manual `git push origin v<x>` fallback for explicit tag-driven releases.
+The release workflow is idempotent **per registry** — it skips cleanly if the version is already on that registry — so it is safe to re-run. Use **Actions → Release → Run workflow** (`workflow_dispatch`) to backfill GitHub Packages when npmjs already has the version. `.github/workflows/publish-npm.yml` is the manual `git push origin v<x>` fallback for explicit tag-driven releases (same dual-publish behavior).
 
 Pre-flight (matches what `release.yml` runs):
 

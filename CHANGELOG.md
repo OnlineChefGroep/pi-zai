@@ -14,6 +14,21 @@ All notable changes to `@onlinechefgroep/pi-zai` are documented in this file.
 
 ### Removed
 
+## [0.5.1] - 2026-07-22
+
+### Changed
+
+- Rewrote `docs/development.md` around this repository as the standalone source of truth (root-level layout, current scripts, automated release flow) and corrected the documented Pi floor to `>=0.80.10` everywhere (README badge and Development page).
+- Hardened `.github/workflows/publish-npm.yml` as the manual tag-push fallback: SHA-pinned actions, `persist-credentials: false`, npm caching, and an idempotent skip when the version is already on npm.
+
+### Added
+
+- `scripts/worker-audit.mjs`, a filtered npm-audit gate for the optional `worker/telemetry` subproject. It fails CI on any high/critical advisory that is not explicitly documented in `DEFERRED`, and tolerates only the upstream-deferred `sharp <0.35.0` advisory (dev-only, pulled via `wrangler -> miniflare`, not present in the published tarball). CI now runs this instead of a bare `npm audit --audit-level=high`.
+
+### Fixed
+
+- CI no longer fails on the upstream-deferred worker `sharp` advisory while still catching any new high/critical worker dependency issue.
+
 ## [0.5.0] - 2026-07-14
 
 ### Breaking Changes

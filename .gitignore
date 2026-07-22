@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.log
 .DS_Store
+# Local-only branch archive (deleted-branch tip SHAs for recovery)
+.archive/

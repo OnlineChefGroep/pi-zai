@@ -2,15 +2,17 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import piZaiExtension from "./index.ts";
 import { EXTENSION_VERSION } from "./version.generated.ts";
 
+export * from "./index.ts";
+
 const EXTENSION_USER_AGENT = `pi-zai/${EXTENSION_VERSION}`;
 const EXTENSION_ACCEPT_LANGUAGE = "en-US,en";
 
 /**
- * Canonical Pi entrypoint.
+ * Canonical Pi and package entrypoint.
  *
- * index.ts retains the public integration surface. This entrypoint adds a final
- * request-boundary guard that removes only headers injected by older pi-zai
- * behavior. User-supplied or Pi-native header values are never removed.
+ * index.ts retains the implementation and named exports. This entrypoint adds a
+ * final request-boundary guard that removes only headers injected by older
+ * pi-zai behavior. User-supplied or Pi-native header values are never removed.
  *
  * This keeps observe/default mode wire-compatible with native Pi and avoids
  * exposing a pi-zai client fingerprint to providers that may route or throttle
